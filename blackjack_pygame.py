@@ -63,7 +63,7 @@ def draw_scores(player_score, dealer_score):
     # Render dealer score only if revealed
     if reveal_dealer:
         dealer_obj = FONT.render(f'Dealer Score: {dealer_score}', True, 'white')
-        dealer_rect = dealer_obj.get_rect(center=(WIDTH / 2, HEIGHT * 0.45))
+        dealer_rect = dealer_obj.get_rect(center=(WIDTH / 2, HEIGHT * 0.15))
         screen.blit(dealer_obj, dealer_rect)
 
 # Draw Cards Function
@@ -86,7 +86,7 @@ def draw_cards(player_hand, dealer_hand, reveal):
 
     # Y-positions for the player and dealer hands, relative to screen height
     player_y = HEIGHT * 0.5
-    dealer_y = HEIGHT * 0.15
+    dealer_y = HEIGHT * 0.2
 
     for i, card in enumerate(player_hand):
         card_image = pygame.image.load(f'img/{card[0]}{card[1]}.png')
@@ -123,7 +123,7 @@ def calculate_score(hand):
     return score
 
 # Draw Game Buttons Function
-def draw_game_buttons(active, record, result):
+def draw_game_buttons(active, record, result, dim):
     '''Draw game buttons (Deal, Hit, Stand) and display game status'''
 
     buttons = []
@@ -132,6 +132,10 @@ def draw_game_buttons(active, record, result):
     deal_width, deal_height = WIDTH * 0.2, HEIGHT * 0.1
     button_width, button_height = WIDTH * 0.15, HEIGHT * 0.1
     margin = HEIGHT * 0.05
+
+    # Dim the screen if needed
+    if dim:
+        dim_screen()
 
     if not active:
         deal_button = pygame.draw.rect(
@@ -163,11 +167,13 @@ def draw_game_buttons(active, record, result):
         screen.blit(score_text, (10, 10))
 
     if result:
-        screen.blit(FONT.render(results_text[result], True, 'white'), (WIDTH / 2, 250))
-
+        result_text_obj = FONT.render(results_text[result], True, 'white')
+        result_text_rect = result_text_obj.get_rect(center=(WIDTH / 2, HEIGHT * 0.4))
+        screen.blit(result_text_obj, result_text_rect)
+        
         restart_button = pygame.draw.rect(
             screen, 'white', 
-            [(WIDTH - deal_width) / 2, HEIGHT * 0.3, deal_width, deal_height], 0, 10
+            [(WIDTH - deal_width) / 2, (HEIGHT - deal_height) / 2, deal_width, deal_height], 0, 10
         )
         restart_text = FONT.render('NEW HAND', True, 'black')
         screen.blit(restart_text, restart_text.get_rect(center=restart_button.center))
@@ -205,7 +211,7 @@ def dim_screen():
     '''Dim the screen before initial deal and when the game is over'''
 
     dim_surface = pygame.Surface(screen.get_size()).convert_alpha()
-    dim_surface.fill((0, 0, 0, 128))  # RGBA: 128 is the alpha for dimming effect
+    dim_surface.fill((0, 0, 0, 175))  # RGBA: 128 is the alpha for dimming effect
     screen.blit(dim_surface, (0, 0))
 
 # Main Game Loop
@@ -231,7 +237,7 @@ while run:
 
         draw_scores(player_score, dealer_score)
 
-    buttons = draw_game_buttons(active_game, records, outcome)
+    buttons = draw_game_buttons(active_game, records, outcome, dim=not active_game or outcome)
 
     for event in pygame.event.get():
         if event.type == pygame.QUIT:
@@ -273,4 +279,3 @@ while run:
     pygame.display.flip()
 
 pygame.quit()
-
