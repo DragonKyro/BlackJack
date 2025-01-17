@@ -37,6 +37,9 @@ class Player:
             score -= 10
             aces_count -= 1
         return score
-    
+
 class Bot(Player):
+    pass
+
+class Dealer(Player):
     pass

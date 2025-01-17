@@ -6,6 +6,7 @@ from scoreboard import Scoreboard
 
 class Game:
     def __init__(self):
+        # Initialization
         pygame.init()
         self.WIDTH, self.HEIGHT = 1280, 720
         self.screen = pygame.display.set_mode((self.WIDTH, self.HEIGHT), pygame.RESIZABLE)
@@ -13,6 +14,13 @@ class Game:
         self.FPS = 60
         self.clock = pygame.time.Clock()
         self.ui = UI(self.WIDTH, self.HEIGHT)
+        self.running = True
+
+        # Title Screen
+        self.draw_settings = False
+
+
+        # Game
         self.deck = Deck()
         self.player = Player()
         self.dealer = Dealer()
@@ -25,12 +33,34 @@ class Game:
         self.add_score = False
         self.bet_amounts = ['1', '5', '25', '100', '500']
         self.shuffle_percentage = 0.75
-        self.run_game()
+        self.title_screen()
+
+    def title_screen(self):
+        """Display title screen with game instructions."""
+        while self.running:
+            self.clock.tick(self.FPS)
+            self.screen.fill('darkgreen')
+            self.ui.create_fonts(self.HEIGHT)
+            start_button, settings_button = self.ui.draw_title_screen(self.WIDTH, self.HEIGHT)
+
+            if self.draw_settings:
+                self.ui.draw_settings(self.WIDTH, self.HEIGHT)
+            for event in pygame.event.get():
+                if event.type == pygame.QUIT:
+                    self.running = False
+                elif event.type == pygame.VIDEORESIZE:
+                    self.WIDTH, self.HEIGHT = event.w, event.h
+                    self.screen = pygame.display.set_mode((self.WIDTH, self.HEIGHT), pygame.RESIZABLE)
+                elif event.type == pygame.MOUSEBUTTONUP:
+                    if start_button.collidepoint(event.pos):
+                        self.run_game()
+                    elif settings_button.collidepoint(event.pos):
+                        self.draw_settings = True
+            pygame.display.flip()
 
     def run_game(self):
         """Main game loop."""
-        run = True
-        while run:
+        while self.running:
             self.clock.tick(self.FPS)
             self.ui.create_fonts(self.HEIGHT)
             self.screen.fill('darkgreen')
@@ -44,27 +74,27 @@ class Game:
             # Update scores and display hands if the game is active
             if self.active_game:
                 self.player.update_score()
-                self.ui.draw_cards(self.player.hand, self.dealer.hand, self.reveal_dealer)
+                self.ui.draw_cards(self.player.hand, self.dealer.hand, self.reveal_dealer, self.WIDTH, self.HEIGHT)
                 
                 if self.reveal_dealer:
                     self.dealer.update_score()
                     if self.dealer.score < 17:
                         self.dealer.hit(self.deck)
                 
-                self.ui.draw_scores(self.player.score, self.dealer.score, self.reveal_dealer)
+                self.ui.draw_scores(self.player.score, self.dealer.score, self.reveal_dealer, self.WIDTH, self.HEIGHT)
 
-            self.ui.draw_amounts(self.active_game, self.player.bet, self.player.money)
+            self.ui.draw_amounts(self.active_game, self.player.bet, self.player.money, self.WIDTH, self.HEIGHT)
 
             # Draw buttons and get their states
             buttons = self.ui.draw_game_buttons(
                 self.active_game, self.scoreboard.records, self.outcome, self.bet_amounts,
-                dim=self.outcome
+                dim=self.outcome, WIDTH=self.WIDTH, HEIGHT=self.HEIGHT
             )
 
             # Handle events
             for event in pygame.event.get():
                 if event.type == pygame.QUIT:
-                    run = False
+                    self.running = False
                 elif event.type == pygame.VIDEORESIZE:
                     self.WIDTH, self.HEIGHT = event.w, event.h
                     self.screen = pygame.display.set_mode((self.WIDTH, self.HEIGHT), pygame.RESIZABLE)
@@ -82,8 +112,6 @@ class Game:
             )
 
             pygame.display.flip()
-
-        pygame.quit()
 
     def handle_mouse_click(self, event, buttons):
         """
@@ -103,7 +131,7 @@ class Game:
                 self.outcome, self.hand_active, self.reveal_dealer = 0, True, False
                 self.add_score = True
                 if self.deck.shuffle_deck():
-                    self.ui.shuffle()
+                    self.ui.shuffle(self.WIDTH, self.HEIGHT)
 
             for i, (subtract_button, add_button) in enumerate(bet_buttons):  # Bet buttons
                 bet_amount = int(self.bet_amounts[i])
@@ -131,3 +159,4 @@ class Game:
 
 if __name__ == '__main__':
     Game()
+    pygame.quit()

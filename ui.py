@@ -9,31 +9,71 @@ class UI:
         self.BIG_FONT = None
         self.results_text = ['', 'Player Busted o_0', 'Player WINS! :D', 'Dealer WINS! :(', 'Tie... :|']
 
-    def create_fonts(self, height):
+    def create_fonts(self, HEIGHT):
         '''Create scalable fonts based on the current screen size'''
-        self.FONT = pygame.font.Font("Namaku.ttf", int(height * 0.06))  # 7% of screen height
-        self.SMALL_FONT = pygame.font.Font("Namaku.ttf", int(height * 0.04))  # 4% of screen height
-        self.BIG_FONT = pygame.font.Font("Namaku.ttf", int(height * 0.1))  # 10% of screen height
+        self.FONT = pygame.font.Font("Namaku.ttf", int(HEIGHT * 0.06))  # 7% of screen height
+        self.SMALL_FONT = pygame.font.Font("Namaku.ttf", int(HEIGHT * 0.04))  # 4% of screen height
+        self.BIG_FONT = pygame.font.Font("Namaku.ttf", int(HEIGHT * 0.1))  # 10% of screen height
 
-    def draw_scores(self, player_score, dealer_score, reveal_dealer):
+    def draw_title_screen(self, WIDTH, HEIGHT):
+        title_obj = pygame.font.Font("Namaku.ttf", int(HEIGHT * 0.17)).render("Lui's\nBlackjack", True, 'white')
+        title_rect= title_obj.get_rect(center=(WIDTH / 2, HEIGHT *0.3))
+        pygame.display.get_surface().blit(title_obj, title_rect)
+
+        # Draw the "Start" button
+        start_width, start_height = WIDTH * 0.3, HEIGHT * 0.17
+        start_x = WIDTH / 2 - start_width / 2
+        start_y = HEIGHT * 0.45
+        start_button = pygame.draw.rect(
+            pygame.display.get_surface(), 'white', (start_x, start_y, start_width, start_height), 0, 10
+        )
+        start_text = self.BIG_FONT.render("START", True, 'black')
+        start_text_rect = start_text.get_rect(center=start_button.center)
+        pygame.display.get_surface().blit(start_text, start_text_rect)
+
+        # Draw the "Settings" button
+        settings_width, settings_height = WIDTH * 0.3, HEIGHT * 0.17
+        settings_x = WIDTH / 2 - settings_width / 2
+        settings_y = HEIGHT * 0.7
+        settings_button = pygame.draw.rect(
+            pygame.display.get_surface(), 'white', (settings_x, settings_y, settings_width, settings_height), 0, 10
+        )
+        settings_text = self.BIG_FONT.render("SETTINGS", True, 'black')
+        settings_text_rect = settings_text.get_rect(center=settings_button.center)
+        pygame.display.get_surface().blit(settings_text, settings_text_rect)
+
+        return start_button, settings_button
+
+    def draw_settings(self, WIDTH, HEIGHT):
+        '''Draw the settings screen'''
+        self.dim_screen()
+        screen = pygame.display.get_surface()
+
+        settings_rect = pygame.draw.rect(screen, 'white', (WIDTH * 0.1, HEIGHT * 0.1, WIDTH * 0.8, HEIGHT * 0.8), 0, 10)
+        settings_text = self.BIG_FONT.render("SETTINGS", True, 'black')
+        settings_text_rect = settings_text.get_rect(midtop=settings_rect.midtop)
+        settings_text_rect.y += HEIGHT * 0.02
+        screen.blit(settings_text, settings_text_rect)
+
+    def draw_scores(self, player_score, dealer_score, reveal_dealer, WIDTH, HEIGHT):
         '''Draw player and dealer scores on the screen'''
 
         # Render player score
         player_obj = self.FONT.render(f'Player Score: {player_score}', True, 'white')
-        player_rect = player_obj.get_rect(center=(self.WIDTH / 2, self.HEIGHT * 0.8))
+        player_rect = player_obj.get_rect(center=(WIDTH / 2, HEIGHT * 0.8))
         pygame.display.get_surface().blit(player_obj, player_rect)
 
         # Render dealer score only if revealed
         if reveal_dealer:
             dealer_obj = self.FONT.render(f'Dealer Score: {dealer_score}', True, 'white')
-            dealer_rect = dealer_obj.get_rect(center=(self.WIDTH / 2, self.HEIGHT * 0.15))
+            dealer_rect = dealer_obj.get_rect(center=(WIDTH / 2, HEIGHT * 0.15))
             pygame.display.get_surface().blit(dealer_obj, dealer_rect)
 
-    def draw_cards(self, player_hand, dealer_hand, reveal_dealer):
+    def draw_cards(self, player_hand, dealer_hand, reveal_dealer, WIDTH, HEIGHT):
         '''Display player and dealer cards on the screen'''
         
         # Calculate card width relative to the screen size and maintain a 5:7 aspect ratio
-        card_width = self.WIDTH * 0.1  # Adjust the multiplier to control card size relative to screen width
+        card_width = WIDTH * 0.1  # Adjust the multiplier to control card size relative to screen width
         card_height = card_width * (7 / 5)  # Maintain 5:7 width-height ratio
 
         # Set the card gap relative to card width for consistent spacing
@@ -43,12 +83,12 @@ class UI:
         player_total_width = len(player_hand) * card_width + (len(player_hand) - 1) * card_gap
         dealer_total_width = len(dealer_hand) * card_width + (len(dealer_hand) - 1) * card_gap
 
-        player_start_x = (self.WIDTH - player_total_width) / 2
-        dealer_start_x = (self.WIDTH - dealer_total_width) / 2
+        player_start_x = (WIDTH - player_total_width) / 2
+        dealer_start_x = (WIDTH - dealer_total_width) / 2
 
         # Y-positions for the player and dealer hands, relative to screen height
-        player_y = self.HEIGHT * 0.5
-        dealer_y = self.HEIGHT * 0.2
+        player_y = HEIGHT * 0.5
+        dealer_y = HEIGHT * 0.2
 
         screen = pygame.display.get_surface()
 
@@ -67,7 +107,7 @@ class UI:
             card_image = pygame.transform.scale(card_image, (int(card_width), int(card_height)))
             screen.blit(card_image, (dealer_start_x + i * (card_width + card_gap), dealer_y))
 
-    def draw_game_buttons(self, active_game, records, outcome, bet_amounts, dim):
+    def draw_game_buttons(self, active_game, records, outcome, bet_amounts, dim, WIDTH, HEIGHT):
         '''Draw game buttons (Deal, Hit, Stand, Continue) and display game status'''
         
         screen = pygame.display.get_surface()
@@ -75,12 +115,12 @@ class UI:
         bet_buttons = []
 
         # Calculate relative positions and sizes based on screen dimensions
-        deal_width, deal_height = self.WIDTH * 0.2, self.HEIGHT * 0.1
-        button_width, button_height = self.WIDTH * 0.15, self.HEIGHT * 0.1
-        margin = self.HEIGHT * 0.05
-        bet_button_size = self.WIDTH * 0.04
-        bet_button_margin = self.WIDTH * 0.02
-        chip_size = self.WIDTH * 0.14
+        deal_width, deal_height = WIDTH * 0.2, HEIGHT * 0.1
+        button_width, button_height = WIDTH * 0.15, HEIGHT * 0.1
+        margin = HEIGHT * 0.05
+        bet_button_size = WIDTH * 0.04
+        bet_button_margin = WIDTH * 0.02
+        chip_size = WIDTH * 0.14
 
         # Dim the screen if needed
         if dim:
@@ -91,7 +131,7 @@ class UI:
 
             deal_button = pygame.draw.rect(
                 screen, 'white', 
-                [(self.WIDTH - deal_width) / 2, (self.HEIGHT - deal_height) / 2, deal_width, deal_height], 0, 10
+                [(WIDTH - deal_width) / 2, (HEIGHT - deal_height) / 2, deal_width, deal_height], 0, 10
             )
             deal_text = self.FONT.render('DEAL HAND', True, 'black')
             screen.blit(deal_text, deal_text.get_rect(center=deal_button.center))
@@ -103,14 +143,14 @@ class UI:
 
             # Calculate the total width occupied by all pairs with custom spacing
             total_buttons_width = len(bet_amounts) * button_pair_width + (len(bet_amounts) - 1) * pair_margin
-            button_start = (self.WIDTH - total_buttons_width) / 2  # Starting x-position to center all pairs
+            button_start = (WIDTH - total_buttons_width) / 2  # Starting x-position to center all pairs
 
             for i, amount in enumerate(bet_amounts):
                 # Calculate x-position for each pair, including the custom pair margin
                 x_position = button_start + i * (button_pair_width + pair_margin)
                 
                 chip_x = x_position + (button_pair_width - chip_size) / 2
-                chip_y = self.HEIGHT * 0.6
+                chip_y = HEIGHT * 0.6
                 chip_image = pygame.image.load(f'img/{amount}chip.png')
                 chip_image = pygame.transform.scale(chip_image, (chip_size, chip_size))
                 screen.blit(chip_image, (chip_x, chip_y))
@@ -118,7 +158,7 @@ class UI:
                 # Draw the subtract button
                 subtract_bet_button = pygame.draw.rect(
                     screen, 'white', 
-                    [x_position, self.HEIGHT * 0.85, bet_button_size, bet_button_size], 0, 10
+                    [x_position, HEIGHT * 0.85, bet_button_size, bet_button_size], 0, 10
                 )
                 bet_text = self.FONT.render('-', True, 'black')
                 screen.blit(bet_text, bet_text.get_rect(center=subtract_bet_button.center))
@@ -126,7 +166,7 @@ class UI:
                 # Draw the add button, positioned to the right of the subtract button within the pair
                 add_bet_button = pygame.draw.rect(
                     screen, 'white', 
-                    [x_position + bet_button_size + bet_button_margin, self.HEIGHT * 0.85, bet_button_size, bet_button_size], 0, 10
+                    [x_position + bet_button_size + bet_button_margin, HEIGHT * 0.85, bet_button_size, bet_button_size], 0, 10
                 )
                 bet_text = self.FONT.render('+', True, 'black')
                 screen.blit(bet_text, bet_text.get_rect(center=add_bet_button.center))
@@ -138,14 +178,14 @@ class UI:
             # Draw the "Hit" and "Stand" buttons
             hit_button = pygame.draw.rect(
                 screen, 'white', 
-                [(self.WIDTH / 2) - button_width - margin, self.HEIGHT - button_height - margin, button_width, button_height], 0, 10
+                [(WIDTH / 2) - button_width - margin, HEIGHT - button_height - margin, button_width, button_height], 0, 10
             )
             hit_text = self.FONT.render('HIT', True, 'black')
             screen.blit(hit_text, hit_text.get_rect(center=hit_button.center))
 
             stand_button = pygame.draw.rect(
                 screen, 'white', 
-                [(self.WIDTH / 2) + margin, self.HEIGHT - button_height - margin, button_width, button_height], 0, 10
+                [(WIDTH / 2) + margin, HEIGHT - button_height - margin, button_width, button_height], 0, 10
             )
             stand_text = self.FONT.render('STAND', True, 'black')
             screen.blit(stand_text, stand_text.get_rect(center=stand_button.center))
@@ -159,12 +199,12 @@ class UI:
         # If the game has an outcome, display result and "New Hand" button
         if outcome:
             result_text_obj = self.FONT.render(self.results_text[outcome], True, 'white')
-            result_text_rect = result_text_obj.get_rect(center=(self.WIDTH / 2, self.HEIGHT * 0.4))
+            result_text_rect = result_text_obj.get_rect(center=(WIDTH / 2, HEIGHT * 0.4))
             screen.blit(result_text_obj, result_text_rect)
 
             restart_button = pygame.draw.rect(
                 screen, 'white', 
-                [(self.WIDTH - deal_width) / 2, (self.HEIGHT - deal_height) / 2, deal_width, deal_height], 0, 10
+                [(WIDTH - deal_width) / 2, (HEIGHT - deal_height) / 2, deal_width, deal_height], 0, 10
             )
             restart_text = self.FONT.render('NEW HAND', True, 'black')
             screen.blit(restart_text, restart_text.get_rect(center=restart_button.center))
@@ -173,17 +213,17 @@ class UI:
         buttons.append(bet_buttons)
         return buttons
 
-    def draw_amounts(self, active_game, bet_amount, money_amount):
+    def draw_amounts(self, active_game, bet_amount, money_amount, WIDTH, HEIGHT):
         '''Display the current bet amount on the screen'''
         bet_text = self.FONT.render(f'CURRENT BET: ${bet_amount}', True, 'white')
         money_text = self.FONT.render(f'CURRENT AMOUNT: ${money_amount}', True, 'white')
         
         if active_game:
-            bet_rect = bet_text.get_rect(topright=(self.WIDTH - 10, 60))
-            money_rect = money_text.get_rect(topright=(self.WIDTH - 10, 10))
+            bet_rect = bet_text.get_rect(topright=(WIDTH - 10, 60))
+            money_rect = money_text.get_rect(topright=(WIDTH - 10, 10))
         else:
-            bet_rect = bet_text.get_rect(center=(self.WIDTH / 2, self.HEIGHT * 0.3))
-            money_rect = money_text.get_rect(center=(self.WIDTH / 2, self.HEIGHT * 0.2))
+            bet_rect = bet_text.get_rect(center=(WIDTH / 2, HEIGHT * 0.3))
+            money_rect = money_text.get_rect(center=(WIDTH / 2, HEIGHT * 0.2))
 
         pygame.display.get_surface().blit(bet_text, bet_rect)
         pygame.display.get_surface().blit(money_text, money_rect)
@@ -194,7 +234,7 @@ class UI:
         dim_surface.fill((0, 0, 0, 175))
         pygame.display.get_surface().blit(dim_surface, (0, 0))
 
-    def shuffle(self):
+    def shuffle(self, WIDTH, HEIGHT):
         '''Shuffle the deck animation'''
         text = ['SHUFFLING', 'SHUFFLING.', 'SHUFFLING..', 'SHUFFLING...']
         self.dim_screen()
@@ -202,7 +242,7 @@ class UI:
         for t in text:
             screen.fill('darkgreen')  # Replace with your desired background color
             shuffle_text = self.FONT.render(t, True, 'white')
-            shuffle_rect = shuffle_text.get_rect(center=(self.WIDTH / 2, self.HEIGHT / 2))
+            shuffle_rect = shuffle_text.get_rect(center=(WIDTH / 2, HEIGHT / 2))
             pygame.display.get_surface().blit(shuffle_text, shuffle_rect)
             pygame.display.flip()
             pygame.time.delay(350)

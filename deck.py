@@ -1,6 +1,5 @@
 import random
 import copy
-from ui import UI
 
 CARDS = ['a', '2', '3', '4', '5', '6', '7', '8', '9', '10', 'j', 'q', 'k']
 SUITS = ['h', 'd', 'c', 's']
@@ -17,7 +16,6 @@ class Deck:
     def deal_card(self):
         card = random.choice(self.deck)
         self.deck.remove(card)
-        print(self.deck)
         return card
     
     def shuffle_deck(self):
