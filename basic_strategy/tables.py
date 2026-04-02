@@ -200,3 +200,69 @@ def lookup_action(rules, player_hand, dealer_up_rank):
     if val < 5:
         return 'H'
     return hard.get(val, ['H'] * 10)[col_idx]
+
+
+# =========================================================================
+# Illustrious 18 + Fab 4 — Hi-Lo count deviations
+#
+# Each entry: (player_hand_desc, dealer_up, true_count_threshold, deviation_action, basic_action)
+# "At TC >= threshold, deviate from basic to deviation_action"
+# Negative threshold means "at TC <= threshold"
+# =========================================================================
+
+ILLUSTRIOUS_18 = [
+    # The "Illustrious 18" — most profitable index plays (ordered by value)
+    ('Insurance',       'A',  3,  'Yes', 'No'),
+    ('16 vs 10',        '10', 0,  'S',   'H'),
+    ('15 vs 10',        '10', 4,  'S',   'H'),
+    ('10,10 vs 5',      '5', 5,   'P',   'S'),
+    ('10,10 vs 6',      '6', 4,   'P',   'S'),
+    ('10 vs 10',        '10', 4,  'D',   'H'),
+    ('12 vs 3',         '3', 2,   'S',   'H'),
+    ('12 vs 2',         '2', 3,   'S',   'H'),
+    ('11 vs A',         'A', 1,   'D',   'H'),
+    ('9 vs 2',          '2', 1,   'D',   'H'),
+    ('10 vs A',         'A', 4,   'D',   'H'),
+    ('9 vs 7',          '7', 3,   'D',   'H'),
+    ('16 vs 9',         '9', 5,   'S',   'H'),
+    ('13 vs 2',         '2', -1,  'H',   'S'),
+    ('12 vs 4',         '4', 0,   'H',   'S'),
+    ('12 vs 5',         '5', -2,  'H',   'S'),
+    ('12 vs 6',         '6', -1,  'H',   'S'),
+    ('13 vs 3',         '3', -2,  'H',   'S'),
+]
+
+FAB_4_SURRENDERS = [
+    # The "Fab 4" — surrender deviations
+    ('14 vs 10',        '10', 3,  'R',   'H'),
+    ('15 vs 10',        '10', 0,  'R',   'H'),
+    ('15 vs 9',         '9',  2,  'R',   'H'),
+    ('15 vs A',         'A',  1,  'R',   'H'),
+]
+
+
+def get_deviations(include_fab4=True):
+    """Return the deviation table entries.
+
+    Each entry is a dict with keys:
+      hand, dealer_up, tc, action, basic_action
+    """
+    entries = []
+    for hand, dealer, tc, dev_action, basic in ILLUSTRIOUS_18:
+        entries.append({
+            'hand': hand,
+            'dealer_up': dealer,
+            'tc': tc,
+            'action': dev_action,
+            'basic_action': basic,
+        })
+    if include_fab4:
+        for hand, dealer, tc, dev_action, basic in FAB_4_SURRENDERS:
+            entries.append({
+                'hand': hand,
+                'dealer_up': dealer,
+                'tc': tc,
+                'action': dev_action,
+                'basic_action': basic,
+            })
+    return entries

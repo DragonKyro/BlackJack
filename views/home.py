@@ -9,12 +9,12 @@ class HomeView(arcade.View):
         self.ui = arcade.gui.UIManager()
         self.title_text = arcade.Text(
             "BLACKJACK",
-            SCREEN_WIDTH / 2, SCREEN_HEIGHT - 120,
+            SCREEN_WIDTH / 2, SCREEN_HEIGHT - 100,
             arcade.color.GOLD, font_size=64, anchor_x="center", bold=True,
         )
         self.subtitle_text = arcade.Text(
             "Training Software",
-            SCREEN_WIDTH / 2, SCREEN_HEIGHT - 170,
+            SCREEN_WIDTH / 2, SCREEN_HEIGHT - 150,
             arcade.color.WHITE, font_size=22, anchor_x="center",
         )
 
@@ -23,12 +23,14 @@ class HomeView(arcade.View):
         self.ui.clear()
         self.window.background_color = FELT_GREEN
 
-        v_box = arcade.gui.UIBoxLayout(space_between=16)
+        v_box = arcade.gui.UIBoxLayout(space_between=14)
 
         play_btn = make_button("Play Blackjack")
         strat_train_btn = make_button("Strategy Trainer")
         count_train_btn = make_button("Counting Trainer")
         strategy_btn = make_button("Strategy Tables")
+        stats_btn = make_button("Stats")
+        options_btn = make_button("Options")
         credits_btn = make_button("Credits")
         exit_btn = make_button("Exit")
 
@@ -36,6 +38,8 @@ class HomeView(arcade.View):
         strat_train_btn.on_click = self._on_strategy_trainer
         count_train_btn.on_click = self._on_counting_trainer
         strategy_btn.on_click = self._on_strategy
+        stats_btn.on_click = self._on_stats
+        options_btn.on_click = self._on_options
         credits_btn.on_click = self._on_credits
         exit_btn.on_click = self._on_exit
 
@@ -43,11 +47,13 @@ class HomeView(arcade.View):
         v_box.add(strat_train_btn)
         v_box.add(count_train_btn)
         v_box.add(strategy_btn)
+        v_box.add(stats_btn)
+        v_box.add(options_btn)
         v_box.add(credits_btn)
         v_box.add(exit_btn)
 
         anchor = arcade.gui.UIAnchorLayout()
-        anchor.add(child=v_box, anchor_x="center_x", anchor_y="center_y", align_y=-60)
+        anchor.add(child=v_box, anchor_x="center_x", anchor_y="center_y", align_y=-70)
         self.ui.add(anchor)
 
     def on_hide_view(self):
@@ -74,6 +80,14 @@ class HomeView(arcade.View):
     def _on_strategy(self, event):
         from views.strategy import StrategyView
         self.window.show_view(StrategyView())
+
+    def _on_stats(self, event):
+        from views.stats import StatsView
+        self.window.show_view(StatsView())
+
+    def _on_options(self, event):
+        from views.options import OptionsView
+        self.window.show_view(OptionsView())
 
     def _on_credits(self, event):
         from views.credits import CreditsView

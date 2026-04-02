@@ -12,11 +12,13 @@ class StrategyTrainerConfigView(arcade.View):
 
     DECK_OPTIONS = [1, 2, 4, 6, 8]
     BJ_PAYOUT_OPTIONS = [1.5, 1.2]
+    DEAL_MODE_OPTIONS = ['Random', 'Hard', 'Soft', 'Pairs', 'Smart']
 
     def __init__(self):
         super().__init__()
         self.ui = arcade.gui.UIManager()
         self.rules = Rules()
+        self.deal_mode = 'Random'
         self.txt_title = arcade.Text(
             "Strategy Trainer",
             SCREEN_WIDTH / 2, SCREEN_HEIGHT - 50,
@@ -39,6 +41,7 @@ class StrategyTrainerConfigView(arcade.View):
 
         main_box = arcade.gui.UIBoxLayout(space_between=12)
 
+        self._add_deal_mode_row(main_box)
         self._add_cycle_row(main_box, "Decks", "num_decks",
                             self.DECK_OPTIONS, str(self.rules.num_decks))
         self._add_cycle_row(main_box, "Dealer on 17", "dealer_hits_soft_17",
@@ -128,9 +131,32 @@ class StrategyTrainerConfigView(arcade.View):
         from views.home import HomeView
         self.window.show_view(HomeView())
 
+    def _add_deal_mode_row(self, parent):
+        row = arcade.gui.UIBoxLayout(vertical=False, space_between=10)
+        lbl = arcade.gui.UILabel(
+            text="Deal Mode", width=220, height=36, font_size=16,
+            text_color=arcade.color.WHITE, align="right",
+        )
+        btn = make_button(self.deal_mode, width=100, height=36)
+        self._cycle_buttons['deal_mode'] = (btn, self.DEAL_MODE_OPTIONS)
+
+        def on_click(event):
+            b, opts = self._cycle_buttons['deal_mode']
+            try:
+                idx = opts.index(self.deal_mode)
+            except ValueError:
+                idx = 0
+            self.deal_mode = opts[(idx + 1) % len(opts)]
+            b.text = self.deal_mode
+
+        btn.on_click = on_click
+        row.add(lbl)
+        row.add(btn)
+        parent.add(row)
+
     def _on_start(self, event):
         from views.strategy_trainer import StrategyTrainerView
-        self.window.show_view(StrategyTrainerView(rules=self.rules))
+        self.window.show_view(StrategyTrainerView(rules=self.rules, deal_mode=self.deal_mode))
 
     def on_draw(self):
         self.clear()

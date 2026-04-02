@@ -7,5 +7,6 @@ from views.strategy_trainer_config import StrategyTrainerConfigView
 from views.strategy_trainer import StrategyTrainerView
 from views.counting_trainer_config import CountingTrainerConfigView
 from views.counting_trainer import CountingTrainerView
+from views.stats import StatsView
 from views.options import OptionsView
 from views.credits import CreditsView

@@ -1,7 +1,7 @@
 import arcade
 import arcade.gui
 from models import Rules
-from basic_strategy.tables import get_strategy_tables, DEALER_COLS, HARD_ROWS, SOFT_ROWS, PAIR_ROWS
+from basic_strategy.tables import get_strategy_tables, get_deviations, DEALER_COLS, HARD_ROWS, SOFT_ROWS, PAIR_ROWS
 from views.common import SCREEN_WIDTH, SCREEN_HEIGHT, FELT_GREEN, make_button
 
 # Color coding for strategy actions
@@ -32,7 +32,7 @@ def _table_origin():
 class StrategyView(arcade.View):
     """Displays basic strategy tables color-coded by action, adjusted to the current ruleset."""
 
-    TABS = ['Hard', 'Soft', 'Pairs']
+    TABS = ['Hard', 'Soft', 'Pairs', 'Deviations']
 
     def __init__(self, rules=None, return_view=None):
         super().__init__()
@@ -51,7 +51,7 @@ class StrategyView(arcade.View):
             (180, 180, 180), font_size=13, anchor_x="center",
         )
         self.txt_key_hints = arcade.Text(
-            "1  Hard  |  2  Soft  |  3  Pairs  |  Esc/T  Back",
+            "1  Hard  |  2  Soft  |  3  Pairs  |  4  Deviations  |  Esc/T  Back",
             SCREEN_WIDTH / 2, 12,
             (150, 150, 150), font_size=12, anchor_x="center",
         )
@@ -148,6 +148,45 @@ class StrategyView(arcade.View):
             ))
             legend_x += 80
 
+        # --- Deviation table text objects ---
+        deviations = get_deviations(include_fab4=True)
+        self._dev_header_texts = []
+        dev_headers = ['Hand', 'vs Dealer', 'TC', 'Play', 'Basic']
+        dev_col_x = [160, 310, 410, 490, 580]
+        dev_header_y = SCREEN_HEIGHT - 110
+        for i, hdr in enumerate(dev_headers):
+            self._dev_header_texts.append(arcade.Text(
+                hdr, dev_col_x[i], dev_header_y,
+                arcade.color.GOLD, font_size=14, anchor_x="center", bold=True,
+            ))
+
+        self._dev_section_label = arcade.Text(
+            "", SCREEN_WIDTH / 2, dev_header_y + 22,
+            arcade.color.WHITE, font_size=15, anchor_x="center", bold=True,
+        )
+
+        self._dev_row_texts = []
+        max_dev_rows = len(deviations)
+        y = dev_header_y - 28
+        for d in deviations:
+            row = []
+            tc_str = f"TC >= {d['tc']}" if d['tc'] >= 0 else f"TC <= {d['tc']}"
+            values = [d['hand'], d['dealer_up'], tc_str, d['action'], d['basic_action']]
+            colors = [
+                arcade.color.WHITE,
+                arcade.color.WHITE,
+                arcade.color.GOLD,
+                ACTION_COLORS.get(d['action'], (200, 200, 200)),
+                (150, 150, 150),
+            ]
+            for i, (val, col) in enumerate(zip(values, colors)):
+                row.append(arcade.Text(
+                    val, dev_col_x[i], y,
+                    col, font_size=13, anchor_x="center",
+                ))
+            self._dev_row_texts.append(row)
+            y -= 24
+
         # Populate initial tab
         self._last_tab = -1
 
@@ -228,6 +267,8 @@ class StrategyView(arcade.View):
             self.active_tab = 1
         elif key == arcade.key.KEY_3:
             self.active_tab = 2
+        elif key == arcade.key.KEY_4:
+            self.active_tab = 3
         elif key in (arcade.key.ESCAPE, arcade.key.T):
             self._on_back(None)
 
@@ -269,29 +310,36 @@ class StrategyView(arcade.View):
         self.txt_title.draw()
         self.txt_rules_summary.draw()
 
-        # Refresh text objects if tab changed
-        if self.active_tab != self._last_tab:
-            self._refresh_table()
-            self._last_tab = self.active_tab
+        if self.active_tab == 3:
+            # Deviations tab
+            self._dev_section_label.text = "Illustrious 18 + Fab 4 Surrenders"
+            self._dev_section_label.draw()
+            for txt in self._dev_header_texts:
+                txt.draw()
+            for row in self._dev_row_texts:
+                for txt in row:
+                    txt.draw()
+        else:
+            # Strategy grid tabs
+            if self.active_tab != self._last_tab:
+                self._refresh_table()
+                self._last_tab = self.active_tab
 
-        # Table title and headers
-        self._txt_table_title.draw()
-        self._txt_dealer_arrow.draw()
-        for txt in self._txt_col_headers:
-            txt.draw()
+            self._txt_table_title.draw()
+            self._txt_dealer_arrow.draw()
+            for txt in self._txt_col_headers:
+                txt.draw()
 
-        # Rows
-        for r in range(self._visible_rows):
-            self._txt_row_labels[r].draw()
-            for c in range(NUM_COLS):
-                lf, rt, bt, tp = self._cell_rects[r][c]
-                arcade.draw_lrbt_rectangle_filled(lf, rt, bt, tp, self._cell_colors[r][c])
-                self._txt_cells[r][c].draw()
+            for r in range(self._visible_rows):
+                self._txt_row_labels[r].draw()
+                for c in range(NUM_COLS):
+                    lf, rt, bt, tp = self._cell_rects[r][c]
+                    arcade.draw_lrbt_rectangle_filled(lf, rt, bt, tp, self._cell_colors[r][c])
+                    self._txt_cells[r][c].draw()
 
-        # Legend
-        for (lf, rt, bt, tp, color), txt in zip(self._legend_rects, self._legend_texts):
-            arcade.draw_lrbt_rectangle_filled(lf, rt, bt, tp, color)
-            txt.draw()
+            for (lf, rt, bt, tp, color), txt in zip(self._legend_rects, self._legend_texts):
+                arcade.draw_lrbt_rectangle_filled(lf, rt, bt, tp, color)
+                txt.draw()
 
         self.txt_key_hints.draw()
         self.ui.draw()
