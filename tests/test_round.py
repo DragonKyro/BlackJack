@@ -1,12 +1,13 @@
 import pytest
-from models import Card, Hand, Player, Deck, Round
+from models import Card, Hand, Player, Deck, Round, Rules
 
 
-def setup_round(player_cards, dealer_cards, bet=100, num_decks=6):
+def setup_round(player_cards, dealer_cards, bet=100, num_decks=6, rules=None):
     """Helper to create a round with specific hands for deterministic testing."""
     player = Player("Player", chips=1000)
     dealer = Player("Dealer", is_dealer=True)
     deck = Deck(num_decks=num_decks)
+    rules = rules or Rules()
 
     player.place_bet(bet)
 
@@ -15,7 +16,7 @@ def setup_round(player_cards, dealer_cards, bet=100, num_decks=6):
     for rank, suit in dealer_cards:
         dealer.hands[0].add_card(Card(rank, suit))
 
-    rnd = Round(player, dealer, deck)
+    rnd = Round(player, dealer, deck, rules)
     rnd.phase = 'playing'
     return rnd, player, dealer
 
@@ -181,3 +182,80 @@ class TestRoundEvaluate:
         rnd.dealer_play()
         result = rnd.evaluate()
         assert player.chips == chips_before + 200
+
+
+class TestRoundSurrender:
+    def test_surrender_returns_half_bet(self):
+        rules = Rules(allow_surrender=True)
+        rnd, player, _ = setup_round(
+            [('10', 'h'), ('6', 'd')],  # 16
+            [('10', 's'), ('7', 'c')],
+            bet=100, rules=rules,
+        )
+        rnd.player_surrender()
+        assert rnd.surrendered
+        assert rnd.phase == 'result'
+        result = rnd.evaluate()
+        assert result['result'] == 'surrender'
+        assert result['payout'] == 50
+
+    def test_surrender_blocked_when_not_allowed(self):
+        rules = Rules(allow_surrender=False)
+        rnd, player, _ = setup_round(
+            [('10', 'h'), ('6', 'd')],
+            [('10', 's'), ('7', 'c')],
+            bet=100, rules=rules,
+        )
+        rnd.player_surrender()
+        assert not rnd.surrendered
+        assert rnd.phase == 'playing'
+
+    def test_surrender_only_on_first_two_cards(self):
+        rules = Rules(allow_surrender=True)
+        rnd, player, _ = setup_round(
+            [('5', 'h'), ('4', 'd'), ('3', 's')],  # 3 cards
+            [('10', 's'), ('7', 'c')],
+            bet=100, rules=rules,
+        )
+        rnd.player_surrender()
+        assert not rnd.surrendered
+
+
+class TestRoundDoubleBlocked:
+    def test_double_blocked_when_not_allowed(self):
+        rules = Rules(allow_double=False)
+        rnd, player, _ = setup_round(
+            [('5', 'h'), ('6', 'd')],
+            [('10', 's'), ('7', 'c')],
+            bet=100, rules=rules,
+        )
+        rnd.player_double()
+        # Double should have been rejected
+        assert len(player.hand.cards) == 2
+        assert player.bets[0] == 100
+
+
+class TestRoundBlackjackPayout:
+    def test_3_to_2_payout(self):
+        rules = Rules(blackjack_payout=1.5)
+        rnd, player, _ = setup_round(
+            [('a', 'h'), ('k', 'd')],  # BJ
+            [('10', 's'), ('8', 'c')],  # 18
+            bet=100, rules=rules,
+        )
+        rnd.dealer_play()
+        result = rnd.evaluate()
+        assert result['result'] == 'blackjack'
+        assert result['payout'] == 250  # 100 + 150
+
+    def test_6_to_5_payout(self):
+        rules = Rules(blackjack_payout=1.2)
+        rnd, player, _ = setup_round(
+            [('a', 'h'), ('k', 'd')],  # BJ
+            [('10', 's'), ('8', 'c')],  # 18
+            bet=100, rules=rules,
+        )
+        rnd.dealer_play()
+        result = rnd.evaluate()
+        assert result['result'] == 'blackjack'
+        assert result['payout'] == 220  # 100 + 120

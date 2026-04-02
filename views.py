@@ -1,6 +1,6 @@
 import arcade
 import arcade.gui
-from models import Game, Deck
+from models import Game, Deck, Rules
 
 SCREEN_WIDTH = 1024
 SCREEN_HEIGHT = 768
@@ -57,6 +57,16 @@ class HomeView(arcade.View):
     def __init__(self):
         super().__init__()
         self.ui = arcade.gui.UIManager()
+        self.title_text = arcade.Text(
+            "BLACKJACK",
+            SCREEN_WIDTH / 2, SCREEN_HEIGHT - 150,
+            arcade.color.GOLD, font_size=64, anchor_x="center", bold=True,
+        )
+        self.subtitle_text = arcade.Text(
+            "Training Software",
+            SCREEN_WIDTH / 2, SCREEN_HEIGHT - 200,
+            arcade.color.WHITE, font_size=22, anchor_x="center",
+        )
 
     def on_show_view(self):
         self.ui.enable()
@@ -89,20 +99,12 @@ class HomeView(arcade.View):
 
     def on_draw(self):
         self.clear()
-        arcade.draw_text(
-            "BLACKJACK",
-            self.window.width / 2, self.window.height - 150,
-            arcade.color.GOLD, font_size=64, anchor_x="center", bold=True,
-        )
-        arcade.draw_text(
-            "Training Software",
-            self.window.width / 2, self.window.height - 200,
-            arcade.color.WHITE, font_size=22, anchor_x="center",
-        )
+        self.title_text.draw()
+        self.subtitle_text.draw()
         self.ui.draw()
 
     def _on_play(self, event):
-        self.window.show_view(GameView())
+        self.window.show_view(RulesView())
 
     def _on_options(self, event):
         self.window.show_view(OptionsView())
@@ -112,6 +114,193 @@ class HomeView(arcade.View):
 
     def _on_exit(self, event):
         arcade.exit()
+
+
+# ===========================================================================
+# RULES VIEW
+# ===========================================================================
+TOGGLE_ON_STYLE = {
+    "normal": arcade.gui.UIFlatButton.UIStyle(
+        font_color=arcade.color.WHITE,
+        bg=(40, 120, 40),
+        border=arcade.color.GREEN,
+        border_width=2,
+    ),
+    "hover": arcade.gui.UIFlatButton.UIStyle(
+        font_color=arcade.color.WHITE,
+        bg=(50, 140, 50),
+        border=arcade.color.GOLD,
+        border_width=2,
+    ),
+    "press": arcade.gui.UIFlatButton.UIStyle(
+        font_color=arcade.color.WHITE,
+        bg=(30, 100, 30),
+        border=arcade.color.GOLD,
+        border_width=2,
+    ),
+}
+
+TOGGLE_OFF_STYLE = {
+    "normal": arcade.gui.UIFlatButton.UIStyle(
+        font_color=arcade.color.LIGHT_GRAY,
+        bg=(100, 40, 40),
+        border=arcade.color.DARK_RED,
+        border_width=2,
+    ),
+    "hover": arcade.gui.UIFlatButton.UIStyle(
+        font_color=arcade.color.WHITE,
+        bg=(120, 50, 50),
+        border=arcade.color.GOLD,
+        border_width=2,
+    ),
+    "press": arcade.gui.UIFlatButton.UIStyle(
+        font_color=arcade.color.WHITE,
+        bg=(80, 30, 30),
+        border=arcade.color.GOLD,
+        border_width=2,
+    ),
+}
+
+
+class RulesView(arcade.View):
+    """Pre-game rules configuration screen."""
+
+    DECK_OPTIONS = [1, 2, 4, 6, 8]
+    PENETRATION_OPTIONS = [0.50, 0.60, 0.70, 0.75, 0.80, 0.85, 0.90]
+    BJ_PAYOUT_OPTIONS = [1.5, 1.2]
+    MIN_BET_OPTIONS = [5, 10, 25, 50, 100]
+
+    def __init__(self, rules=None):
+        super().__init__()
+        self.ui = arcade.gui.UIManager()
+        self.rules = rules or Rules()
+        self.txt_title = arcade.Text(
+            "Table Rules",
+            SCREEN_WIDTH / 2, SCREEN_HEIGHT - 60,
+            arcade.color.GOLD, font_size=42, anchor_x="center", bold=True,
+        )
+        # Stores references to buttons so we can update their text/style
+        self._toggle_buttons = {}
+        self._cycle_buttons = {}
+
+    def on_show_view(self):
+        self.ui.enable()
+        self.ui.clear()
+        self.window.background_color = FELT_GREEN
+        self._toggle_buttons.clear()
+        self._cycle_buttons.clear()
+
+        # Two-column grid of settings
+        main_box = arcade.gui.UIBoxLayout(space_between=12)
+
+        # --- Cycle options (label + cycle button) ---
+        self._add_cycle_row(main_box, "Decks", "num_decks",
+                            self.DECK_OPTIONS, str(self.rules.num_decks))
+        self._add_cycle_row(main_box, "Penetration", "penetration",
+                            self.PENETRATION_OPTIONS, self.rules.penetration_label())
+        self._add_cycle_row(main_box, "Blackjack Pays", "blackjack_payout",
+                            self.BJ_PAYOUT_OPTIONS, self.rules.blackjack_label())
+        self._add_cycle_row(main_box, "Dealer on 17", "dealer_hits_soft_17",
+                            [True, False],
+                            self.rules.dealer_17_label())
+        self._add_cycle_row(main_box, "Min Bet", "min_bet",
+                            self.MIN_BET_OPTIONS, f"${self.rules.min_bet}")
+
+        # --- Toggle options ---
+        self._add_toggle_row(main_box, "Double Down", "allow_double", self.rules.allow_double)
+        self._add_toggle_row(main_box, "Split", "allow_split", self.rules.allow_split)
+        self._add_toggle_row(main_box, "Double After Split", "allow_double_after_split",
+                             self.rules.allow_double_after_split)
+        self._add_toggle_row(main_box, "Surrender", "allow_surrender", self.rules.allow_surrender)
+        self._add_toggle_row(main_box, "Insurance", "allow_insurance", self.rules.allow_insurance)
+
+        # --- Action buttons ---
+        btn_row = arcade.gui.UIBoxLayout(vertical=False, space_between=20)
+        start_btn = make_button("Start Game", width=200, height=50)
+        start_btn.on_click = self._on_start
+        back_btn = make_button("Back", width=140, height=50)
+        back_btn.on_click = self._on_back_to_menu
+        btn_row.add(back_btn)
+        btn_row.add(start_btn)
+        main_box.add(btn_row)
+
+        anchor = arcade.gui.UIAnchorLayout()
+        anchor.add(child=main_box, anchor_x="center_x", anchor_y="center_y", align_y=-30)
+        self.ui.add(anchor)
+
+    def on_hide_view(self):
+        self.ui.disable()
+
+    # --- Row builders ---
+    def _add_toggle_row(self, parent, label_text, attr, current_value):
+        row = arcade.gui.UIBoxLayout(vertical=False, space_between=10)
+        lbl = arcade.gui.UILabel(
+            text=label_text, width=220, height=36, font_size=16,
+            text_color=arcade.color.WHITE, align="right",
+        )
+        btn_text = "ON" if current_value else "OFF"
+        btn_style = TOGGLE_ON_STYLE if current_value else TOGGLE_OFF_STYLE
+        btn = arcade.gui.UIFlatButton(text=btn_text, width=100, height=36, style=btn_style)
+        self._toggle_buttons[attr] = btn
+
+        def on_click(event, a=attr):
+            val = not getattr(self.rules, a)
+            setattr(self.rules, a, val)
+            b = self._toggle_buttons[a]
+            b.text = "ON" if val else "OFF"
+            b.style = TOGGLE_ON_STYLE if val else TOGGLE_OFF_STYLE
+
+        btn.on_click = on_click
+        row.add(lbl)
+        row.add(btn)
+        parent.add(row)
+
+    def _add_cycle_row(self, parent, label_text, attr, options, display_text):
+        row = arcade.gui.UIBoxLayout(vertical=False, space_between=10)
+        lbl = arcade.gui.UILabel(
+            text=label_text, width=220, height=36, font_size=16,
+            text_color=arcade.color.WHITE, align="right",
+        )
+        btn = make_button(display_text, width=100, height=36)
+        self._cycle_buttons[attr] = (btn, options)
+
+        def on_click(event, a=attr):
+            b, opts = self._cycle_buttons[a]
+            cur = getattr(self.rules, a)
+            try:
+                idx = opts.index(cur)
+            except ValueError:
+                idx = 0
+            nxt = opts[(idx + 1) % len(opts)]
+            setattr(self.rules, a, nxt)
+            b.text = self._format_cycle_value(a, nxt)
+
+        btn.on_click = on_click
+        row.add(lbl)
+        row.add(btn)
+        parent.add(row)
+
+    def _format_cycle_value(self, attr, value):
+        if attr == "penetration":
+            return f"{int(value * 100)}%"
+        if attr == "blackjack_payout":
+            return "3:2" if value == 1.5 else "6:5"
+        if attr == "dealer_hits_soft_17":
+            return "H17" if value else "S17"
+        if attr == "min_bet":
+            return f"${value}"
+        return str(value)
+
+    def _on_back_to_menu(self, event):
+        self.window.show_view(HomeView())
+
+    def _on_start(self, event):
+        self.window.show_view(GameView(self.rules))
+
+    def on_draw(self):
+        self.clear()
+        self.txt_title.draw()
+        self.ui.draw()
 
 
 # ===========================================================================
@@ -125,9 +314,10 @@ class GameView(arcade.View):
     PLAYER_Y = 280
     CARDS_START_X = 320
 
-    def __init__(self):
+    def __init__(self, rules=None):
         super().__init__()
-        self.game = Game(num_decks=6, min_bet=10)
+        self.rules = rules or Rules()
+        self.game = Game(rules=self.rules)
         self.ui = arcade.gui.UIManager()
 
         # State: 'betting', 'playing', 'dealer_turn', 'result'
@@ -140,11 +330,47 @@ class GameView(arcade.View):
         self.dealer_sprites = arcade.SpriteList()
         self.player_sprites = arcade.SpriteList()
 
-        # GUI containers for different states
-        self._bet_widgets = None
-        self._play_widgets = None
-        self._result_widgets = None
+        # GUI containers
         self._bet_label = None
+
+        # --- Pre-built Text objects ---
+        self.txt_chips = arcade.Text(
+            "", 20, SCREEN_HEIGHT - 30,
+            arcade.color.GOLD, font_size=18,
+        )
+        self.txt_stats = arcade.Text(
+            "", SCREEN_WIDTH - 420, SCREEN_HEIGHT - 30,
+            arcade.color.WHITE, font_size=14,
+        )
+        self.txt_place_bet = arcade.Text(
+            "Place Your Bet",
+            SCREEN_WIDTH / 2, SCREEN_HEIGHT / 2 + 100,
+            arcade.color.WHITE, font_size=32, anchor_x="center", bold=True,
+        )
+        self.txt_dealer_label = arcade.Text(
+            "Dealer", 20, self.DEALER_Y + 30,
+            arcade.color.WHITE, font_size=18,
+        )
+        self.txt_player_label = arcade.Text(
+            "Player", 20, self.PLAYER_Y + 30,
+            arcade.color.WHITE, font_size=18,
+        )
+        self.txt_player_value = arcade.Text(
+            "", 20, self.PLAYER_Y - 40,
+            arcade.color.GOLD, font_size=18,
+        )
+        self.txt_dealer_value = arcade.Text(
+            "", 20, self.DEALER_Y - 40,
+            arcade.color.GOLD, font_size=18,
+        )
+        self.txt_bet = arcade.Text(
+            "", 20, self.PLAYER_Y - 70,
+            arcade.color.WHITE, font_size=16,
+        )
+        self.txt_result = arcade.Text(
+            "", SCREEN_WIDTH / 2, self.PLAYER_Y - 100,
+            arcade.color.GOLD, font_size=30, anchor_x="center", bold=True,
+        )
 
     # --- View lifecycle ---
     def on_show_view(self):
@@ -198,7 +424,7 @@ class GameView(arcade.View):
 
         # Back button
         back_btn = make_button("Back to Menu", width=200, height=40)
-        back_btn.on_click = lambda e: self.window.show_view(HomeView())
+        back_btn.on_click = self._on_back_to_menu
         v_box.add(back_btn)
 
         anchor = arcade.gui.UIAnchorLayout()
@@ -210,18 +436,31 @@ class GameView(arcade.View):
         self.state = 'playing'
 
         h_box = arcade.gui.UIBoxLayout(vertical=False, space_between=15)
-        hit_btn = make_button("Hit", width=120, height=50)
-        stand_btn = make_button("Stand", width=120, height=50)
-        double_btn = make_button("Double", width=120, height=50)
+        hit_btn = make_button("Hit", width=110, height=50)
+        stand_btn = make_button("Stand", width=110, height=50)
 
         hit_btn.on_click = self._on_hit
         stand_btn.on_click = self._on_stand
-        double_btn.on_click = self._on_double
 
         h_box.add(hit_btn)
         h_box.add(stand_btn)
-        if self.game.round and self.game.player.hand.can_double() and self.game.player.chips >= self.game.player.bets[0]:
-            h_box.add(double_btn)
+
+        rnd = self.game.round
+        if rnd:
+            can_dbl = (self.rules.allow_double
+                       and self.game.player.hand.can_double()
+                       and self.game.player.chips >= self.game.player.bets[0])
+            if can_dbl:
+                double_btn = make_button("Double", width=110, height=50)
+                double_btn.on_click = self._on_double
+                h_box.add(double_btn)
+
+            can_surr = (self.rules.allow_surrender
+                        and len(self.game.player.hand.cards) == 2)
+            if can_surr:
+                surr_btn = make_button("Surrender", width=130, height=50)
+                surr_btn.on_click = self._on_surrender
+                h_box.add(surr_btn)
 
         anchor = arcade.gui.UIAnchorLayout()
         anchor.add(child=h_box, anchor_x="center_x", anchor_y="bottom", align_y=30)
@@ -246,6 +485,9 @@ class GameView(arcade.View):
         self.ui.add(anchor)
 
     # --- Event handlers ---
+    def _on_back_to_menu(self, event):
+        self.window.show_view(HomeView())
+
     def _adjust_bet(self, amount):
         self.current_bet = max(self.game.min_bet, min(self.current_bet + amount, self.game.player.chips))
         if self._bet_label:
@@ -292,6 +534,11 @@ class GameView(arcade.View):
         else:
             self._do_dealer_turn()
 
+    def _on_surrender(self, event):
+        self.game.round.player_surrender()
+        self._build_card_sprites(hide_dealer_hole=False)
+        self._finish_round()
+
     def _do_dealer_turn(self):
         self.game.round.dealer_play()
         self._build_card_sprites(hide_dealer_hole=False)
@@ -309,8 +556,20 @@ class GameView(arcade.View):
             'lose': f"Dealer Wins. -${bet}",
             'bust': f"Bust! -${bet}",
             'push': "Push - Bet Returned",
+            'surrender': f"Surrendered. -${bet - payout}",
         }
         self.result_message = messages.get(result, "")
+
+        # Update result text color
+        if 'Win' in self.result_message or 'BLACKJACK' in self.result_message:
+            self.txt_result.color = arcade.color.GREEN
+        elif 'Bust' in self.result_message or 'Dealer Wins' in self.result_message:
+            self.txt_result.color = arcade.color.RED
+        elif 'Surrendered' in self.result_message:
+            self.txt_result.color = arcade.color.YELLOW
+        else:
+            self.txt_result.color = arcade.color.GOLD
+
         self._setup_result_ui()
 
     def _on_next_hand(self, event):
@@ -352,85 +611,49 @@ class GameView(arcade.View):
     def on_draw(self):
         self.clear()
 
-        # Draw table info bar at top
-        arcade.draw_text(
-            f"Chips: ${self.game.player.chips}",
-            20, SCREEN_HEIGHT - 30,
-            arcade.color.GOLD, font_size=18,
-        )
+        # Update and draw top info bar
+        self.txt_chips.text = f"Chips: ${self.game.player.chips}"
+        self.txt_chips.draw()
+
         stats = self.game.get_stats()
-        arcade.draw_text(
-            f"Hands: {stats['hands_played']}  W: {stats['wins']}  L: {stats['losses']}  P: {stats['pushes']}",
-            SCREEN_WIDTH - 420, SCREEN_HEIGHT - 30,
-            arcade.color.WHITE, font_size=14,
-        )
+        self.txt_stats.text = f"Hands: {stats['hands_played']}  W: {stats['wins']}  L: {stats['losses']}  P: {stats['pushes']}"
+        self.txt_stats.draw()
 
         if self.state == 'betting':
-            arcade.draw_text(
-                "Place Your Bet",
-                SCREEN_WIDTH / 2, SCREEN_HEIGHT / 2 + 100,
-                arcade.color.WHITE, font_size=32, anchor_x="center", bold=True,
-            )
+            self.txt_place_bet.draw()
         else:
-            # Draw card labels
-            arcade.draw_text("Dealer", 20, self.DEALER_Y + 30, arcade.color.WHITE, font_size=18)
-            arcade.draw_text("Player", 20, self.PLAYER_Y + 30, arcade.color.WHITE, font_size=18)
+            # Card labels
+            self.txt_dealer_label.draw()
+            self.txt_player_label.draw()
 
             # Draw cards
             self.dealer_sprites.draw()
             self.player_sprites.draw()
 
-            # Show hand values
-            player_val = self.game.player.hands[0].value()
-            arcade.draw_text(
-                f"Value: {player_val}",
-                20, self.PLAYER_Y - 40,
-                arcade.color.GOLD, font_size=18,
-            )
+            # Player hand value
+            self.txt_player_value.text = f"Value: {self.game.player.hands[0].value()}"
+            self.txt_player_value.draw()
 
+            # Dealer value / showing
             if self.state in ('dealer_turn', 'result'):
-                dealer_val = self.game.dealer.hands[0].value()
-                arcade.draw_text(
-                    f"Value: {dealer_val}",
-                    20, self.DEALER_Y - 40,
-                    arcade.color.GOLD, font_size=18,
-                )
+                self.txt_dealer_value.text = f"Value: {self.game.dealer.hands[0].value()}"
             else:
-                # Show only the up card value
                 if self.game.dealer.hands[0].cards:
-                    up_val = self.game.dealer.hands[0].cards[0].value()
-                    if self.game.dealer.hands[0].cards[0].rank == 'a':
-                        arcade.draw_text(
-                            "Showing: A",
-                            20, self.DEALER_Y - 40,
-                            arcade.color.GOLD, font_size=18,
-                        )
+                    up_card = self.game.dealer.hands[0].cards[0]
+                    if up_card.rank == 'a':
+                        self.txt_dealer_value.text = "Showing: A"
                     else:
-                        arcade.draw_text(
-                            f"Showing: {up_val}",
-                            20, self.DEALER_Y - 40,
-                            arcade.color.GOLD, font_size=18,
-                        )
+                        self.txt_dealer_value.text = f"Showing: {up_card.value()}"
+            self.txt_dealer_value.draw()
 
-            # Show current bet
-            arcade.draw_text(
-                f"Bet: ${self.game.player.bets[0]}",
-                20, self.PLAYER_Y - 70,
-                arcade.color.WHITE, font_size=16,
-            )
+            # Current bet
+            self.txt_bet.text = f"Bet: ${self.game.player.bets[0]}"
+            self.txt_bet.draw()
 
         # Result message
         if self.state == 'result' and self.result_message:
-            color = arcade.color.GOLD
-            if 'Win' in self.result_message or 'BLACKJACK' in self.result_message:
-                color = arcade.color.GREEN
-            elif 'Bust' in self.result_message or 'Dealer Wins' in self.result_message:
-                color = arcade.color.RED
-            arcade.draw_text(
-                self.result_message,
-                SCREEN_WIDTH / 2, self.PLAYER_Y - 100,
-                color, font_size=30, anchor_x="center", bold=True,
-            )
+            self.txt_result.text = self.result_message
+            self.txt_result.draw()
 
         self.ui.draw()
 
@@ -442,6 +665,16 @@ class OptionsView(arcade.View):
     def __init__(self):
         super().__init__()
         self.ui = arcade.gui.UIManager()
+        self.txt_title = arcade.Text(
+            "Options",
+            SCREEN_WIDTH / 2, SCREEN_HEIGHT - 150,
+            arcade.color.GOLD, font_size=48, anchor_x="center", bold=True,
+        )
+        self.txt_coming_soon = arcade.Text(
+            "Coming soon...",
+            SCREEN_WIDTH / 2, SCREEN_HEIGHT / 2,
+            arcade.color.WHITE, font_size=22, anchor_x="center",
+        )
 
     def on_show_view(self):
         self.ui.enable()
@@ -451,7 +684,7 @@ class OptionsView(arcade.View):
         v_box = arcade.gui.UIBoxLayout(space_between=20)
 
         back_btn = make_button("Back to Menu")
-        back_btn.on_click = lambda e: self.window.show_view(HomeView())
+        back_btn.on_click = self._on_back_to_menu
         v_box.add(back_btn)
 
         anchor = arcade.gui.UIAnchorLayout()
@@ -461,18 +694,13 @@ class OptionsView(arcade.View):
     def on_hide_view(self):
         self.ui.disable()
 
+    def _on_back_to_menu(self, event):
+        self.window.show_view(HomeView())
+
     def on_draw(self):
         self.clear()
-        arcade.draw_text(
-            "Options",
-            SCREEN_WIDTH / 2, SCREEN_HEIGHT - 150,
-            arcade.color.GOLD, font_size=48, anchor_x="center", bold=True,
-        )
-        arcade.draw_text(
-            "Coming soon...",
-            SCREEN_WIDTH / 2, SCREEN_HEIGHT / 2,
-            arcade.color.WHITE, font_size=22, anchor_x="center",
-        )
+        self.txt_title.draw()
+        self.txt_coming_soon.draw()
         self.ui.draw()
 
 
@@ -483,28 +711,7 @@ class CreditsView(arcade.View):
     def __init__(self):
         super().__init__()
         self.ui = arcade.gui.UIManager()
-
-    def on_show_view(self):
-        self.ui.enable()
-        self.ui.clear()
-        self.window.background_color = FELT_GREEN
-
-        v_box = arcade.gui.UIBoxLayout(space_between=20)
-
-        back_btn = make_button("Back to Menu")
-        back_btn.on_click = lambda e: self.window.show_view(HomeView())
-        v_box.add(back_btn)
-
-        anchor = arcade.gui.UIAnchorLayout()
-        anchor.add(child=v_box, anchor_x="center_x", anchor_y="center_y", align_y=-100)
-        self.ui.add(anchor)
-
-    def on_hide_view(self):
-        self.ui.disable()
-
-    def on_draw(self):
-        self.clear()
-        arcade.draw_text(
+        self.txt_title = arcade.Text(
             "Credits",
             SCREEN_WIDTH / 2, SCREEN_HEIGHT - 150,
             arcade.color.GOLD, font_size=48, anchor_x="center", bold=True,
@@ -516,11 +723,39 @@ class CreditsView(arcade.View):
             "",
             "Card assets: Standard 52-card deck sprites",
         ]
+        self.txt_lines = []
         y = SCREEN_HEIGHT / 2 + 40
         for line in lines:
-            arcade.draw_text(
+            self.txt_lines.append(arcade.Text(
                 line, SCREEN_WIDTH / 2, y,
                 arcade.color.WHITE, font_size=18, anchor_x="center",
-            )
+            ))
             y -= 30
+
+    def on_show_view(self):
+        self.ui.enable()
+        self.ui.clear()
+        self.window.background_color = FELT_GREEN
+
+        v_box = arcade.gui.UIBoxLayout(space_between=20)
+
+        back_btn = make_button("Back to Menu")
+        back_btn.on_click = self._on_back_to_menu
+        v_box.add(back_btn)
+
+        anchor = arcade.gui.UIAnchorLayout()
+        anchor.add(child=v_box, anchor_x="center_x", anchor_y="center_y", align_y=-100)
+        self.ui.add(anchor)
+
+    def on_hide_view(self):
+        self.ui.disable()
+
+    def _on_back_to_menu(self, event):
+        self.window.show_view(HomeView())
+
+    def on_draw(self):
+        self.clear()
+        self.txt_title.draw()
+        for txt in self.txt_lines:
+            txt.draw()
         self.ui.draw()

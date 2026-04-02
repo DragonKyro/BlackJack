@@ -1,19 +1,20 @@
 import pytest
-from models import Game
+from models import Game, Rules
 
 
 class TestGameInit:
     def test_default_game(self):
         g = Game()
-        assert g.num_decks == 6
+        assert g.rules.num_decks == 6
         assert g.min_bet == 10
         assert g.player.chips == 1000
         assert g.dealer.is_dealer
         assert g.deck.num_remaining() == 312
 
     def test_custom_game(self):
-        g = Game(num_decks=2, min_bet=25)
-        assert g.num_decks == 2
+        r = Rules(num_decks=2, min_bet=25)
+        g = Game(rules=r)
+        assert g.rules.num_decks == 2
         assert g.min_bet == 25
         assert g.deck.num_remaining() == 104
 
@@ -33,8 +34,9 @@ class TestGameStartRound:
         assert g.player.chips == 950
 
     def test_reshuffle_at_penetration(self):
-        g = Game(num_decks=1)
-        # Deal most of the deck
+        r = Rules(num_decks=1, penetration=0.75)
+        g = Game(rules=r)
+        # Deal most of the deck (past 75% penetration)
         for _ in range(40):
             g.deck.next_card()
         remaining_before = g.deck.num_remaining()
@@ -43,12 +45,22 @@ class TestGameStartRound:
         # Should have reshuffled: remaining ~ 52 - 4 (dealt for round)
         assert g.deck.num_remaining() > remaining_before
 
+    def test_custom_penetration(self):
+        r = Rules(num_decks=1, penetration=0.50)
+        g = Game(rules=r)
+        # Deal 26 cards (50% penetration)
+        for _ in range(26):
+            g.deck.next_card()
+        remaining_before = g.deck.num_remaining()
+        g.start_round(10)
+        # Should have reshuffled
+        assert g.deck.num_remaining() > remaining_before
+
 
 class TestGameEndRound:
     def test_end_round_records_history(self):
         g = Game()
         g.start_round(100)
-        # Player stands immediately
         g.round.player_stand()
         g.round.dealer_play()
         result = g.end_round()
@@ -62,10 +74,10 @@ class TestGameStats:
         stats = g.get_stats()
         assert stats['hands_played'] == 0
         assert stats['wins'] == 0
+        assert stats['surrenders'] == 0
 
     def test_stats_after_rounds(self):
         g = Game()
-        # Play a few rounds
         for _ in range(5):
             g.start_round(10)
             g.round.player_stand()
@@ -82,25 +94,22 @@ class TestGameMultipleRounds:
         g.start_round(100)
         g.round.player_stand()
         g.round.dealer_play()
-        result = g.end_round()
-        chips_after_first = g.player.chips
+        g.end_round()
 
         g.start_round(100)
         g.round.player_stand()
         g.round.dealer_play()
         g.end_round()
 
-        # Chips should reflect both rounds' outcomes
-        assert g.player.chips != 1000 or True  # May push both times
         assert len(g.history) == 2
 
     def test_deck_continuity(self):
         """Cards dealt in one round reduce the deck for the next."""
-        g = Game(num_decks=6)
+        r = Rules(num_decks=6)
+        g = Game(rules=r)
         cards_start = g.deck.num_remaining()
         g.start_round(10)
         g.round.player_stand()
         g.round.dealer_play()
         g.end_round()
-        # At least 4 cards dealt (2 each), possibly more from dealer hits
         assert g.deck.num_remaining() < cards_start

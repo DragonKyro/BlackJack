@@ -1,5 +1,5 @@
 import pytest
-from models import Player, Deck
+from models import Player, Deck, Rules
 
 
 class TestPlayerInit:
@@ -57,11 +57,10 @@ class TestDealerPlay:
     def test_dealer_hits_below_17(self):
         d = Player("Dealer", is_dealer=True)
         deck = Deck(num_decks=6)
-        # Give dealer a low hand
-        from models import Card, Hand
+        from models import Card
         d.hands[0].add_card(Card('3', 'h'))
         d.hands[0].add_card(Card('4', 'd'))
-        d.dealer_play(deck)
+        d.dealer_play(deck, Rules())
         assert d.hand.value() >= 17
 
     def test_dealer_stands_on_hard_17(self):
@@ -70,16 +69,28 @@ class TestDealerPlay:
         from models import Card
         d.hands[0].add_card(Card('10', 'h'))
         d.hands[0].add_card(Card('7', 'd'))
-        d.dealer_play(deck)
+        d.dealer_play(deck, Rules())
         assert d.hand.value() == 17  # Should not hit
 
-    def test_dealer_hits_soft_17(self):
+    def test_dealer_hits_soft_17_h17(self):
         d = Player("Dealer", is_dealer=True)
         deck = Deck(num_decks=6)
         from models import Card
         d.hands[0].add_card(Card('a', 'h'))
         d.hands[0].add_card(Card('6', 'd'))
         assert d.hand.is_soft()
-        d.dealer_play(deck)
+        d.dealer_play(deck, Rules(dealer_hits_soft_17=True))
         # Dealer must hit soft 17, so value should change
         assert d.hand.value() != 17 or len(d.hand.cards) > 2
+
+    def test_dealer_stands_soft_17_s17(self):
+        d = Player("Dealer", is_dealer=True)
+        deck = Deck(num_decks=6)
+        from models import Card
+        d.hands[0].add_card(Card('a', 'h'))
+        d.hands[0].add_card(Card('6', 'd'))
+        assert d.hand.is_soft()
+        d.dealer_play(deck, Rules(dealer_hits_soft_17=False))
+        # S17: dealer stands on soft 17
+        assert d.hand.value() == 17
+        assert len(d.hand.cards) == 2

@@ -1,5 +1,7 @@
 import random
 import os
+from dataclasses import dataclass, field
+
 
 SUITS = ['c', 'd', 'h', 's']
 SUIT_NAMES = {'c': 'Clubs', 'd': 'Diamonds', 'h': 'Hearts', 's': 'Spades'}
@@ -9,6 +11,31 @@ RANK_NAMES = {
     '7': '7', '8': '8', '9': '9', '10': '10',
     'j': 'Jack', 'q': 'Queen', 'k': 'King', 'a': 'Ace'
 }
+
+
+@dataclass
+class Rules:
+    num_decks: int = 6
+    penetration: float = 0.75
+    dealer_hits_soft_17: bool = True
+    blackjack_payout: float = 1.5       # 3:2 = 1.5, 6:5 = 1.2
+    allow_double: bool = True
+    allow_split: bool = True
+    allow_double_after_split: bool = True
+    allow_surrender: bool = False
+    allow_insurance: bool = False
+    min_bet: int = 10
+
+    def blackjack_label(self):
+        if self.blackjack_payout == 1.5:
+            return "3:2"
+        return "6:5"
+
+    def dealer_17_label(self):
+        return "H17" if self.dealer_hits_soft_17 else "S17"
+
+    def penetration_label(self):
+        return f"{int(self.penetration * 100)}%"
 
 
 class Card:
@@ -159,18 +186,23 @@ class Player:
         self.active_hand_index = 0
         self.done = False
 
-    def dealer_play(self, deck):
-        """Dealer hits on soft 17 and below."""
-        while self.hand.value() < 17 or (self.hand.value() == 17 and self.hand.is_soft()):
+    def dealer_play(self, deck, rules=None):
+        """Dealer hits below 17, and on soft 17 if rules say so."""
+        hits_soft_17 = rules.dealer_hits_soft_17 if rules else True
+        while self.hand.value() < 17 or (
+            hits_soft_17 and self.hand.value() == 17 and self.hand.is_soft()
+        ):
             self.draw_card(deck)
 
 
 class Round:
-    def __init__(self, player, dealer, deck):
+    def __init__(self, player, dealer, deck, rules=None):
         self.player = player
         self.dealer = dealer
         self.deck = deck
+        self.rules = rules or Rules()
         self.phase = 'playing'
+        self.surrendered = False
         self.results = []
 
     def deal_initial(self):
@@ -189,6 +221,8 @@ class Round:
         self.phase = 'dealer_turn'
 
     def player_double(self):
+        if not self.rules.allow_double:
+            return
         additional = min(self.player.bets[0], self.player.chips)
         self.player.chips -= additional
         self.player.bets[0] += additional
@@ -198,8 +232,16 @@ class Round:
         else:
             self.phase = 'dealer_turn'
 
+    def player_surrender(self):
+        if not self.rules.allow_surrender:
+            return
+        if len(self.player.hand.cards) != 2:
+            return
+        self.surrendered = True
+        self.phase = 'result'
+
     def dealer_play(self):
-        self.dealer.dealer_play(self.deck)
+        self.dealer.dealer_play(self.deck, self.rules)
         self.phase = 'result'
 
     def evaluate(self):
@@ -212,7 +254,10 @@ class Round:
         player_bj = player_hand.is_blackjack()
         dealer_bj = dealer_hand.is_blackjack()
 
-        if player_hand.is_bust():
+        if self.surrendered:
+            result = 'surrender'
+            payout = bet // 2
+        elif player_hand.is_bust():
             result = 'bust'
             payout = 0
         elif player_bj and dealer_bj:
@@ -220,7 +265,7 @@ class Round:
             payout = bet
         elif player_bj:
             result = 'blackjack'
-            payout = bet + int(bet * 1.5)
+            payout = bet + int(bet * self.rules.blackjack_payout)
         elif dealer_bj:
             result = 'lose'
             payout = 0
@@ -248,24 +293,28 @@ class Round:
 
 
 class Game:
-    def __init__(self, num_decks=6, min_bet=10):
-        self.num_decks = num_decks
-        self.min_bet = min_bet
-        self.deck = Deck(num_decks)
+    def __init__(self, rules=None):
+        self.rules = rules or Rules()
+        self.deck = Deck(self.rules.num_decks)
         self.player = Player("Player", chips=1000)
         self.dealer = Player("Dealer", is_dealer=True)
         self.round = None
         self.history = []
 
+    @property
+    def min_bet(self):
+        return self.rules.min_bet
+
     def start_round(self, bet_amount):
-        # Reshuffle if penetration past 75%
-        if self.deck.num_remaining() < (self.num_decks * 52 * 0.25):
+        total_cards = self.rules.num_decks * 52
+        reshuffle_threshold = total_cards * (1 - self.rules.penetration)
+        if self.deck.num_remaining() < reshuffle_threshold:
             self.deck.shuffle()
 
         self.player.reset()
         self.dealer.reset()
         self.player.place_bet(bet_amount)
-        self.round = Round(self.player, self.dealer, self.deck)
+        self.round = Round(self.player, self.dealer, self.deck, self.rules)
         self.round.deal_initial()
         return self.round
 
@@ -276,15 +325,18 @@ class Game:
 
     def get_stats(self):
         if not self.history:
-            return {'hands_played': 0, 'wins': 0, 'losses': 0, 'pushes': 0, 'blackjacks': 0}
+            return {'hands_played': 0, 'wins': 0, 'losses': 0, 'pushes': 0,
+                    'blackjacks': 0, 'surrenders': 0}
         wins = sum(1 for r in self.history if r['result'] in ('win', 'blackjack'))
         losses = sum(1 for r in self.history if r['result'] in ('lose', 'bust'))
         pushes = sum(1 for r in self.history if r['result'] == 'push')
         blackjacks = sum(1 for r in self.history if r['result'] == 'blackjack')
+        surrenders = sum(1 for r in self.history if r['result'] == 'surrender')
         return {
             'hands_played': len(self.history),
             'wins': wins,
             'losses': losses,
             'pushes': pushes,
             'blackjacks': blackjacks,
+            'surrenders': surrenders,
         }
