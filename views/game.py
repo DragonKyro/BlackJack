@@ -107,6 +107,27 @@ class GameView(arcade.View):
             (150, 150, 150), font_size=12, anchor_x="center",
         )
 
+        # --- Shoe indicator (top-right area near the "shoe" position) ---
+        shoe_label_x = SHOE_X
+        shoe_label_y = SHOE_Y - 30
+        self.txt_shoe_label = arcade.Text(
+            "Shoe", shoe_label_x, shoe_label_y,
+            (180, 180, 180), font_size=11, anchor_x="center",
+        )
+        self.txt_shoe_remaining = arcade.Text(
+            "", shoe_label_x, shoe_label_y - 18,
+            arcade.color.WHITE, font_size=11, anchor_x="center",
+        )
+        self.txt_shoe_decks = arcade.Text(
+            "", shoe_label_x, shoe_label_y - 34,
+            (150, 150, 150), font_size=10, anchor_x="center",
+        )
+        # Bar dimensions
+        self._shoe_bar_x = shoe_label_x - 20
+        self._shoe_bar_y = shoe_label_y - 58
+        self._shoe_bar_w = 40
+        self._shoe_bar_h = 8
+
     # ------------------------------------------------------------------
     # View lifecycle
     # ------------------------------------------------------------------
@@ -569,4 +590,33 @@ class GameView(arcade.View):
             self.txt_result.draw()
 
         self.txt_key_hints.draw()
+
+        # Shoe indicator
+        total_cards = self.rules.num_decks * 52
+        remaining = self.game.deck.num_remaining()
+        decks_left = remaining / 52
+        pct = remaining / total_cards if total_cards > 0 else 0
+
+        self.txt_shoe_remaining.text = f"{remaining}/{total_cards}"
+        self.txt_shoe_decks.text = f"~{decks_left:.1f} decks"
+        self.txt_shoe_label.draw()
+        self.txt_shoe_remaining.draw()
+        self.txt_shoe_decks.draw()
+
+        # Progress bar (green→yellow→red as shoe depletes)
+        bx = self._shoe_bar_x
+        by = self._shoe_bar_y
+        bw = self._shoe_bar_w
+        bh = self._shoe_bar_h
+        arcade.draw_lrbt_rectangle_filled(bx, bx + bw, by, by + bh, (60, 60, 60))
+        if pct > 0.5:
+            bar_color = (50, 180, 50)
+        elif pct > 0.25:
+            bar_color = (200, 180, 30)
+        else:
+            bar_color = (220, 50, 50)
+        fill_w = int(bw * pct)
+        if fill_w > 0:
+            arcade.draw_lrbt_rectangle_filled(bx, bx + fill_w, by, by + bh, bar_color)
+
         self.ui.draw()

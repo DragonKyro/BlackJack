@@ -18,6 +18,15 @@ CELL_W = 42
 CELL_H = 24
 HEADER_H = 28
 ROW_LABEL_W = 52
+MAX_ROWS = max(len(HARD_ROWS), len(SOFT_ROWS), len(PAIR_ROWS))
+NUM_COLS = len(DEALER_COLS)
+
+
+def _table_origin():
+    table_w = ROW_LABEL_W + NUM_COLS * CELL_W
+    start_x = (SCREEN_WIDTH - table_w) / 2
+    start_y = SCREEN_HEIGHT - 110
+    return start_x, start_y, table_w
 
 
 class StrategyView(arcade.View):
@@ -29,8 +38,8 @@ class StrategyView(arcade.View):
         super().__init__()
         self.ui = arcade.gui.UIManager()
         self.rules = rules or Rules()
-        self.return_view = return_view  # View to return to (GameView or None → HomeView)
-        self.active_tab = 0  # 0=Hard, 1=Soft, 2=Pairs
+        self.return_view = return_view
+        self.active_tab = 0
 
         self.txt_title = arcade.Text(
             "Basic Strategy",
@@ -47,10 +56,10 @@ class StrategyView(arcade.View):
             (150, 150, 150), font_size=12, anchor_x="center",
         )
 
-        # Pre-build the strategy data
+        # Strategy data
         self._hard, self._soft, self._pairs = get_strategy_tables(self.rules)
 
-        # Build rules summary
+        # Rules summary
         parts = [
             f"{self.rules.num_decks}D",
             self.rules.dealer_17_label(),
@@ -62,14 +71,110 @@ class StrategyView(arcade.View):
             parts.append("LS")
         self.txt_rules_summary.text = "  |  ".join(parts)
 
+        # --- Pre-build all Text objects for table rendering ---
+        sx, sy, tw = _table_origin()
+
+        # Table title text (updated per tab)
+        self._txt_table_title = arcade.Text(
+            "", sx + tw / 2, sy + 10,
+            arcade.color.WHITE, font_size=16, anchor_x="center", bold=True,
+        )
+
+        # "Dealer →" label
+        self._txt_dealer_arrow = arcade.Text(
+            "Dealer \u2192",
+            sx + ROW_LABEL_W / 2, sy - HEADER_H / 2,
+            (180, 180, 180), font_size=10,
+            anchor_x="center", anchor_y="center",
+        )
+
+        # Column headers
+        self._txt_col_headers = []
+        for c, col in enumerate(DEALER_COLS):
+            cx = sx + ROW_LABEL_W + c * CELL_W + CELL_W / 2
+            cy = sy - HEADER_H / 2
+            self._txt_col_headers.append(arcade.Text(
+                col, cx, cy,
+                arcade.color.GOLD, font_size=12,
+                anchor_x="center", anchor_y="center", bold=True,
+            ))
+
+        # Row labels (MAX_ROWS — hide unused ones)
+        self._txt_row_labels = []
+        for r in range(MAX_ROWS):
+            ry = sy - HEADER_H - r * CELL_H
+            self._txt_row_labels.append(arcade.Text(
+                "", sx + ROW_LABEL_W / 2, ry - CELL_H / 2,
+                arcade.color.WHITE, font_size=11,
+                anchor_x="center", anchor_y="center",
+            ))
+
+        # Cell texts (MAX_ROWS x NUM_COLS)
+        self._txt_cells = []
+        self._cell_rects = []
+        for r in range(MAX_ROWS):
+            row_texts = []
+            row_rects = []
+            ry = sy - HEADER_H - r * CELL_H
+            for c in range(NUM_COLS):
+                cx = sx + ROW_LABEL_W + c * CELL_W
+                cy = ry - CELL_H
+                row_texts.append(arcade.Text(
+                    "", cx + CELL_W / 2, cy + CELL_H / 2,
+                    arcade.color.WHITE, font_size=11,
+                    anchor_x="center", anchor_y="center", bold=True,
+                ))
+                row_rects.append((cx + 1, cx + CELL_W - 1, cy + 1, cy + CELL_H - 1))
+            self._txt_cells.append(row_texts)
+            self._cell_rects.append(row_rects)
+
+        # Cell colors (updated when tab changes)
+        self._cell_colors = [[(80, 80, 80)] * NUM_COLS for _ in range(MAX_ROWS)]
+        self._visible_rows = 0
+
+        # Legend texts
+        legend_y = 80
+        legend_x = SCREEN_WIDTH / 2 - 180
+        items = [('H', 'Hit'), ('S', 'Stand'), ('D', 'Double'),
+                 ('P', 'Split'), ('R', 'Surrender')]
+        self._legend_rects = []
+        self._legend_texts = []
+        for action, label in items:
+            self._legend_rects.append((legend_x, legend_x + 20, legend_y, legend_y + 14,
+                                       ACTION_COLORS[action]))
+            self._legend_texts.append(arcade.Text(
+                f" {label}", legend_x + 24, legend_y + 1,
+                arcade.color.WHITE, font_size=12,
+            ))
+            legend_x += 80
+
+        # Populate initial tab
+        self._last_tab = -1
+
     def on_show_view(self):
         self.ui.enable()
         self.ui.clear()
         self.window.background_color = FELT_GREEN
         self._build_ui()
+        self._last_tab = -1  # force refresh
 
     def on_hide_view(self):
         self.ui.disable()
+
+    def _rebuild_tables(self):
+        """Regenerate strategy data and summary from current rules."""
+        self._hard, self._soft, self._pairs = get_strategy_tables(self.rules)
+        parts = [
+            f"{self.rules.num_decks}D",
+            self.rules.dealer_17_label(),
+            self.rules.blackjack_label(),
+        ]
+        if self.rules.allow_double:
+            parts.append("DAS" if self.rules.allow_double_after_split else "D")
+        if self.rules.allow_surrender:
+            parts.append("LS")
+        self.txt_rules_summary.text = "  |  ".join(parts)
+        self._last_tab = -1  # force table redraw
 
     def _build_ui(self):
         self.ui.clear()
@@ -79,6 +184,10 @@ class StrategyView(arcade.View):
             btn = make_button(name, width=100, height=36)
             btn.on_click = lambda e, idx=i: self._switch_tab(idx)
             h_box.add(btn)
+
+        rules_btn = make_button("Rules", width=100, height=36)
+        rules_btn.on_click = self._on_change_rules
+        h_box.add(rules_btn)
 
         back_btn = make_button("Back", width=100, height=36)
         back_btn.on_click = self._on_back
@@ -90,6 +199,20 @@ class StrategyView(arcade.View):
 
     def _switch_tab(self, idx):
         self.active_tab = idx
+
+    def _on_change_rules(self, event):
+        from views.rules import RulesView
+        self.window.show_view(RulesView(
+            rules=self.rules,
+            on_start_callback=self._apply_new_rules,
+            start_label="View Strategy",
+        ))
+
+    def _apply_new_rules(self, rules):
+        """Called by RulesView when user confirms new rules."""
+        self.rules = rules
+        self._rebuild_tables()
+        self.window.show_view(self)
 
     def _on_back(self, event):
         if self.return_view:
@@ -109,6 +232,36 @@ class StrategyView(arcade.View):
             self._on_back(None)
 
     # ------------------------------------------------------------------
+    # Update table text objects when tab changes
+    # ------------------------------------------------------------------
+    def _refresh_table(self):
+        if self.active_tab == 0:
+            title, rows, data = "Hard Totals", HARD_ROWS, self._hard
+            label_fn = str
+        elif self.active_tab == 1:
+            title, rows, data = "Soft Totals", SOFT_ROWS, self._soft
+            label_fn = lambda r: f"A+{r - 11}"
+        else:
+            title, rows, data = "Pairs", PAIR_ROWS, self._pairs
+            label_fn = lambda r: f"{r},{r}"
+
+        self._txt_table_title.text = title
+        self._visible_rows = len(rows)
+
+        for r in range(MAX_ROWS):
+            if r < len(rows):
+                self._txt_row_labels[r].text = str(label_fn(rows[r]))
+                actions = data.get(rows[r], ['?'] * NUM_COLS)
+                for c in range(NUM_COLS):
+                    action = actions[c]
+                    self._txt_cells[r][c].text = action
+                    self._cell_colors[r][c] = ACTION_COLORS.get(action, (80, 80, 80))
+            else:
+                self._txt_row_labels[r].text = ""
+                for c in range(NUM_COLS):
+                    self._txt_cells[r][c].text = ""
+
+    # ------------------------------------------------------------------
     # Drawing
     # ------------------------------------------------------------------
     def on_draw(self):
@@ -116,103 +269,29 @@ class StrategyView(arcade.View):
         self.txt_title.draw()
         self.txt_rules_summary.draw()
 
-        if self.active_tab == 0:
-            self._draw_table("Hard Totals", HARD_ROWS, self._hard, str)
-        elif self.active_tab == 1:
-            self._draw_table("Soft Totals", SOFT_ROWS, self._soft, lambda r: f"A+{r - 11}")
-        else:
-            self._draw_table("Pairs", PAIR_ROWS, self._pairs, lambda r: f"{r},{r}")
+        # Refresh text objects if tab changed
+        if self.active_tab != self._last_tab:
+            self._refresh_table()
+            self._last_tab = self.active_tab
+
+        # Table title and headers
+        self._txt_table_title.draw()
+        self._txt_dealer_arrow.draw()
+        for txt in self._txt_col_headers:
+            txt.draw()
+
+        # Rows
+        for r in range(self._visible_rows):
+            self._txt_row_labels[r].draw()
+            for c in range(NUM_COLS):
+                lf, rt, bt, tp = self._cell_rects[r][c]
+                arcade.draw_lrbt_rectangle_filled(lf, rt, bt, tp, self._cell_colors[r][c])
+                self._txt_cells[r][c].draw()
 
         # Legend
-        self._draw_legend()
+        for (lf, rt, bt, tp, color), txt in zip(self._legend_rects, self._legend_texts):
+            arcade.draw_lrbt_rectangle_filled(lf, rt, bt, tp, color)
+            txt.draw()
 
         self.txt_key_hints.draw()
         self.ui.draw()
-
-    def _draw_table(self, title, rows, data, row_label_fn):
-        num_cols = len(DEALER_COLS)
-        num_rows = len(rows)
-        table_w = ROW_LABEL_W + num_cols * CELL_W
-        table_h = HEADER_H + num_rows * CELL_H
-
-        # Center the table
-        start_x = (SCREEN_WIDTH - table_w) / 2
-        start_y = SCREEN_HEIGHT - 100
-
-        # Table title
-        arcade.draw_text(
-            title,
-            start_x + table_w / 2, start_y + 10,
-            arcade.color.WHITE, font_size=16, anchor_x="center", bold=True,
-        )
-        start_y -= 10
-
-        # Column headers (dealer up-card)
-        for c, col in enumerate(DEALER_COLS):
-            cx = start_x + ROW_LABEL_W + c * CELL_W + CELL_W / 2
-            cy = start_y - HEADER_H / 2
-            arcade.draw_text(
-                col, cx, cy,
-                arcade.color.GOLD, font_size=12,
-                anchor_x="center", anchor_y="center", bold=True,
-            )
-
-        # "Dealer" label
-        arcade.draw_text(
-            "Dealer \u2192",
-            start_x + ROW_LABEL_W / 2, start_y - HEADER_H / 2,
-            (180, 180, 180), font_size=10,
-            anchor_x="center", anchor_y="center",
-        )
-
-        # Rows
-        for r, row_key in enumerate(rows):
-            ry = start_y - HEADER_H - r * CELL_H
-
-            # Row label
-            label = str(row_label_fn(row_key))
-            arcade.draw_text(
-                label,
-                start_x + ROW_LABEL_W / 2, ry - CELL_H / 2,
-                arcade.color.WHITE, font_size=11,
-                anchor_x="center", anchor_y="center",
-            )
-
-            # Cells
-            actions = data.get(row_key, ['?'] * 10)
-            for c, action in enumerate(actions):
-                cx = start_x + ROW_LABEL_W + c * CELL_W
-                cy = ry - CELL_H
-
-                color = ACTION_COLORS.get(action, (80, 80, 80))
-                arcade.draw_lrbt_rectangle_filled(
-                    cx + 1, cx + CELL_W - 1,
-                    cy + 1, cy + CELL_H - 1,
-                    color,
-                )
-                arcade.draw_text(
-                    action,
-                    cx + CELL_W / 2, cy + CELL_H / 2,
-                    arcade.color.WHITE, font_size=11,
-                    anchor_x="center", anchor_y="center", bold=True,
-                )
-
-    def _draw_legend(self):
-        legend_y = 80
-        legend_x = SCREEN_WIDTH / 2 - 180
-        items = [
-            ('H', 'Hit'), ('S', 'Stand'), ('D', 'Double'),
-            ('P', 'Split'), ('R', 'Surrender'),
-        ]
-        for action, label in items:
-            color = ACTION_COLORS[action]
-            arcade.draw_lrbt_rectangle_filled(
-                legend_x, legend_x + 20,
-                legend_y, legend_y + 14,
-                color,
-            )
-            arcade.draw_text(
-                f" {label}", legend_x + 24, legend_y + 1,
-                arcade.color.WHITE, font_size=12,
-            )
-            legend_x += 80
