@@ -519,11 +519,12 @@ class StrategyTrainerView(arcade.View):
             'type': ht,
             'player_val': self.player_hand.value(),
             'dealer_up': str(self.dealer_up_card),
+            'dealer_rank': self.dealer_up_card.rank,
             'your': action,
             'answer': self.correct_action,
         })
-        if len(self.stats['history']) > 500:
-            self.stats['history'] = self.stats['history'][-500:]
+        if len(self.stats['history']) > 2000:
+            self.stats['history'] = self.stats['history'][-2000:]
 
         if self.was_correct:
             self.txt_feedback.text = "Correct!"

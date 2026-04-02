@@ -1,2 +1,7 @@
 arcade>=3.3,<4.0
+numpy
+pandas
+matplotlib
+plotly
+kaleido
 pytest>=9.0

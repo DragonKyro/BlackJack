@@ -1,7 +1,7 @@
 import arcade
 import arcade.gui
 from models import Rules, Deck, Hand
-from bet_spread import BetSpread
+from utils.bet_spread import BetSpread
 from basic_strategy.tables import lookup_action
 from views.common import (
     SCREEN_WIDTH, SCREEN_HEIGHT, FELT_GREEN,

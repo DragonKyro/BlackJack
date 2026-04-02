@@ -1,7 +1,7 @@
 import arcade
 import arcade.gui
 from models import Rules
-from bet_spread import BetSpread
+from utils.bet_spread import BetSpread
 from views.common import (
     SCREEN_WIDTH, SCREEN_HEIGHT, FELT_GREEN,
     TOGGLE_ON_STYLE, TOGGLE_OFF_STYLE, make_button, make_cycle_row,
