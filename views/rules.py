@@ -3,7 +3,7 @@ import arcade.gui
 from models import Rules
 from views.common import (
     SCREEN_WIDTH, SCREEN_HEIGHT, FELT_GREEN,
-    TOGGLE_ON_STYLE, TOGGLE_OFF_STYLE, make_button,
+    TOGGLE_ON_STYLE, TOGGLE_OFF_STYLE, make_button, make_cycle_row,
 )
 
 
@@ -96,28 +96,24 @@ class RulesView(arcade.View):
         parent.add(row)
 
     def _add_cycle_row(self, parent, label_text, attr, options, display_text):
-        row = arcade.gui.UIBoxLayout(vertical=False, space_between=10)
-        lbl = arcade.gui.UILabel(
-            text=label_text, width=220, height=36, font_size=16,
-            text_color=arcade.color.WHITE, align="right",
+        def _step(delta, a=attr):
+            def handler(event):
+                b, opts = self._cycle_buttons[a]
+                cur = getattr(self.rules, a)
+                try:
+                    idx = opts.index(cur)
+                except ValueError:
+                    idx = 0
+                nxt = opts[(idx + delta) % len(opts)]
+                setattr(self.rules, a, nxt)
+                b.text = self._format_cycle_value(a, nxt)
+            return handler
+
+        row, val_btn = make_cycle_row(
+            label_text, display_text,
+            on_prev=_step(-1), on_next=_step(1),
         )
-        btn = make_button(display_text, width=100, height=36)
-        self._cycle_buttons[attr] = (btn, options)
-
-        def on_click(event, a=attr):
-            b, opts = self._cycle_buttons[a]
-            cur = getattr(self.rules, a)
-            try:
-                idx = opts.index(cur)
-            except ValueError:
-                idx = 0
-            nxt = opts[(idx + 1) % len(opts)]
-            setattr(self.rules, a, nxt)
-            b.text = self._format_cycle_value(a, nxt)
-
-        btn.on_click = on_click
-        row.add(lbl)
-        row.add(btn)
+        self._cycle_buttons[attr] = (val_btn, options)
         parent.add(row)
 
     def _format_cycle_value(self, attr, value):

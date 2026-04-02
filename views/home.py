@@ -29,6 +29,9 @@ class HomeView(arcade.View):
         strat_train_btn = make_button("Strategy Trainer")
         count_train_btn = make_button("Counting Trainer")
         strategy_btn = make_button("Strategy Tables")
+        smart_train_btn = make_button("Smart Trainer")
+        bet_train_btn = make_button("Bet Trainer")
+        bet_spread_btn = make_button("Bet Spread")
         stats_btn = make_button("Stats")
         options_btn = make_button("Options")
         credits_btn = make_button("Credits")
@@ -38,6 +41,9 @@ class HomeView(arcade.View):
         strat_train_btn.on_click = self._on_strategy_trainer
         count_train_btn.on_click = self._on_counting_trainer
         strategy_btn.on_click = self._on_strategy
+        smart_train_btn.on_click = self._on_smart_trainer
+        bet_train_btn.on_click = self._on_bet_trainer
+        bet_spread_btn.on_click = self._on_bet_spread
         stats_btn.on_click = self._on_stats
         options_btn.on_click = self._on_options
         credits_btn.on_click = self._on_credits
@@ -47,6 +53,9 @@ class HomeView(arcade.View):
         v_box.add(strat_train_btn)
         v_box.add(count_train_btn)
         v_box.add(strategy_btn)
+        v_box.add(smart_train_btn)
+        v_box.add(bet_train_btn)
+        v_box.add(bet_spread_btn)
         v_box.add(stats_btn)
         v_box.add(options_btn)
         v_box.add(credits_btn)
@@ -80,6 +89,18 @@ class HomeView(arcade.View):
     def _on_strategy(self, event):
         from views.strategy import StrategyView
         self.window.show_view(StrategyView())
+
+    def _on_smart_trainer(self, event):
+        from views.smart_trainer_config import SmartTrainerConfigView
+        self.window.show_view(SmartTrainerConfigView())
+
+    def _on_bet_trainer(self, event):
+        from views.bet_trainer_config import BetTrainerConfigView
+        self.window.show_view(BetTrainerConfigView())
+
+    def _on_bet_spread(self, event):
+        from views.bet_spread import BetSpreadView
+        self.window.show_view(BetSpreadView())
 
     def _on_stats(self, event):
         from views.stats import StatsView

@@ -1,36 +1,38 @@
 import arcade
 import arcade.gui
 from models import Rules
+from bet_spread import BetSpread
 from views.common import (
     SCREEN_WIDTH, SCREEN_HEIGHT, FELT_GREEN,
     TOGGLE_ON_STYLE, TOGGLE_OFF_STYLE, make_button, make_cycle_row,
 )
 
 
-class StrategyTrainerConfigView(arcade.View):
-    """Select rules before starting the strategy trainer."""
+class SmartTrainerConfigView(arcade.View):
+    """Configure the smart (all-in-one) trainer."""
 
     DECK_OPTIONS = [1, 2, 4, 6, 8]
-    BJ_PAYOUT_OPTIONS = [1.5, 1.2]
-    DEAL_MODE_OPTIONS = ['Random', 'Hard', 'Soft', 'Pairs', 'Smart']
+    PENETRATION_OPTIONS = [0.50, 0.60, 0.70, 0.75, 0.80, 0.85, 0.90]
+    SPREAD_OPTIONS = ['1-12', '1-8', '1-4', 'Flat']
 
     def __init__(self):
         super().__init__()
         self.ui = arcade.gui.UIManager()
         self.rules = Rules()
-        self.deal_mode = 'Random'
+        self.spread_name = '1-12'
+        self._toggle_buttons = {}
+        self._cycle_buttons = {}
+
         self.txt_title = arcade.Text(
-            "Strategy Trainer",
+            "Smart Trainer",
             SCREEN_WIDTH / 2, SCREEN_HEIGHT - 50,
             arcade.color.GOLD, font_size=36, anchor_x="center", bold=True,
         )
         self.txt_subtitle = arcade.Text(
-            "Configure table rules for practice",
+            "Play + Count + Bet — all validated in real time",
             SCREEN_WIDTH / 2, SCREEN_HEIGHT - 82,
-            (180, 180, 180), font_size=14, anchor_x="center",
+            (180, 180, 180), font_size=13, anchor_x="center",
         )
-        self._toggle_buttons = {}
-        self._cycle_buttons = {}
 
     def on_show_view(self):
         self.ui.enable()
@@ -41,18 +43,17 @@ class StrategyTrainerConfigView(arcade.View):
 
         main_box = arcade.gui.UIBoxLayout(space_between=12)
 
-        self._add_deal_mode_row(main_box)
         self._add_cycle_row(main_box, "Decks", "num_decks",
-                            self.DECK_OPTIONS, str(self.rules.num_decks))
+                            self.DECK_OPTIONS, str(self.rules.num_decks), 'rules')
+        self._add_cycle_row(main_box, "Penetration", "penetration",
+                            self.PENETRATION_OPTIONS, self.rules.penetration_label(), 'rules')
         self._add_cycle_row(main_box, "Dealer on 17", "dealer_hits_soft_17",
-                            [True, False], self.rules.dealer_17_label())
-        self._add_cycle_row(main_box, "Blackjack Pays", "blackjack_payout",
-                            self.BJ_PAYOUT_OPTIONS, self.rules.blackjack_label())
+                            [True, False], self.rules.dealer_17_label(), 'rules')
+        self._add_cycle_row(main_box, "Bet Spread", "spread_name",
+                            self.SPREAD_OPTIONS, self.spread_name, 'self')
 
         self._add_toggle_row(main_box, "Double Down", "allow_double", self.rules.allow_double)
         self._add_toggle_row(main_box, "Split", "allow_split", self.rules.allow_split)
-        self._add_toggle_row(main_box, "Double After Split", "allow_double_after_split",
-                             self.rules.allow_double_after_split)
         self._add_toggle_row(main_box, "Surrender", "allow_surrender", self.rules.allow_surrender)
 
         btn_row = arcade.gui.UIBoxLayout(vertical=False, space_between=20)
@@ -71,9 +72,8 @@ class StrategyTrainerConfigView(arcade.View):
     def on_hide_view(self):
         self.ui.disable()
 
-    # --- Row builders (same pattern as RulesView) ---
     def _add_toggle_row(self, parent, label_text, attr, current_value):
-        row = arcade.gui.UIBoxLayout(vertical=False, space_between=10)
+        row = arcade.gui.UIBoxLayout(vertical=False, space_between=6)
         lbl = arcade.gui.UILabel(
             text=label_text, width=220, height=36, font_size=16,
             text_color=arcade.color.WHITE, align="right",
@@ -95,18 +95,19 @@ class StrategyTrainerConfigView(arcade.View):
         row.add(btn)
         parent.add(row)
 
-    def _add_cycle_row(self, parent, label_text, attr, options, display_text):
-        def _step(delta, a=attr):
+    def _add_cycle_row(self, parent, label_text, attr, options, display_text, target):
+        def _step(delta, a=attr, t=target):
             def handler(event):
                 b, opts = self._cycle_buttons[a]
-                cur = getattr(self.rules, a)
+                obj = self.rules if t == 'rules' else self
+                cur = getattr(obj, a)
                 try:
                     idx = opts.index(cur)
                 except ValueError:
                     idx = 0
                 nxt = opts[(idx + delta) % len(opts)]
-                setattr(self.rules, a, nxt)
-                b.text = self._format_cycle_value(a, nxt)
+                setattr(obj, a, nxt)
+                b.text = self._format_value(a, nxt)
             return handler
 
         row, val_btn = make_cycle_row(
@@ -116,39 +117,46 @@ class StrategyTrainerConfigView(arcade.View):
         self._cycle_buttons[attr] = (val_btn, options)
         parent.add(row)
 
-    def _format_cycle_value(self, attr, value):
-        if attr == "blackjack_payout":
-            return "3:2" if value == 1.5 else "6:5"
-        if attr == "dealer_hits_soft_17":
+    def _format_value(self, attr, value):
+        if attr == 'penetration':
+            return f"{int(value * 100)}%"
+        if attr == 'dealer_hits_soft_17':
             return "H17" if value else "S17"
         return str(value)
+
+    def _build_spread(self):
+        if self.spread_name == '1-12':
+            return BetSpread(spread={
+                tc: (0 if tc <= -3 else 1 if tc <= 1 else
+                     2 if tc == 2 else 4 if tc == 3 else
+                     8 if tc == 4 else 12)
+                for tc in range(-7, 11)
+            })
+        elif self.spread_name == '1-8':
+            return BetSpread(spread={
+                tc: (0 if tc <= -3 else 1 if tc <= 1 else
+                     2 if tc == 2 else 4 if tc == 3 else
+                     6 if tc == 4 else 8)
+                for tc in range(-7, 11)
+            })
+        elif self.spread_name == '1-4':
+            return BetSpread(spread={
+                tc: (0 if tc <= -3 else 1 if tc <= 1 else
+                     2 if tc == 2 else 3 if tc == 3 else 4)
+                for tc in range(-7, 11)
+            })
+        else:
+            return BetSpread(spread={tc: 1 for tc in range(-7, 11)})
 
     def _on_back(self, event):
         from views.home import HomeView
         self.window.show_view(HomeView())
 
-    def _add_deal_mode_row(self, parent):
-        def _step(delta):
-            def handler(event):
-                b, opts = self._cycle_buttons['deal_mode']
-                try:
-                    idx = opts.index(self.deal_mode)
-                except ValueError:
-                    idx = 0
-                self.deal_mode = opts[(idx + delta) % len(opts)]
-                b.text = self.deal_mode
-            return handler
-
-        row, val_btn = make_cycle_row(
-            "Deal Mode", self.deal_mode,
-            on_prev=_step(-1), on_next=_step(1),
-        )
-        self._cycle_buttons['deal_mode'] = (val_btn, self.DEAL_MODE_OPTIONS)
-        parent.add(row)
-
     def _on_start(self, event):
-        from views.strategy_trainer import StrategyTrainerView
-        self.window.show_view(StrategyTrainerView(rules=self.rules, deal_mode=self.deal_mode))
+        from views.smart_trainer import SmartTrainerView
+        self.window.show_view(SmartTrainerView(
+            rules=self.rules, spread=self._build_spread(),
+        ))
 
     def on_draw(self):
         self.clear()

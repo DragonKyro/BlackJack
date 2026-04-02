@@ -1,6 +1,6 @@
 import arcade
 import arcade.gui
-from views.common import SCREEN_WIDTH, SCREEN_HEIGHT, FELT_GREEN, make_button
+from views.common import SCREEN_WIDTH, SCREEN_HEIGHT, FELT_GREEN, make_button, make_cycle_row
 
 
 class CountingTrainerConfigView(arcade.View):
@@ -65,28 +65,25 @@ class CountingTrainerConfigView(arcade.View):
         self.ui.disable()
 
     def _add_cycle_row(self, parent, label_text, attr, options, display_text):
-        row = arcade.gui.UIBoxLayout(vertical=False, space_between=10)
-        lbl = arcade.gui.UILabel(
-            text=label_text, width=240, height=40, font_size=16,
-            text_color=arcade.color.WHITE, align="right",
+        def _step(delta, a=attr):
+            def handler(event):
+                b, opts = self._cycle_buttons[a]
+                cur = getattr(self, a)
+                try:
+                    idx = opts.index(cur)
+                except ValueError:
+                    idx = 0
+                nxt = opts[(idx + delta) % len(opts)]
+                setattr(self, a, nxt)
+                b.text = self._format_value(a, nxt)
+            return handler
+
+        row, val_btn = make_cycle_row(
+            label_text, display_text,
+            on_prev=_step(-1), on_next=_step(1),
+            label_width=240, value_width=120, height=40,
         )
-        btn = make_button(display_text, width=120, height=40)
-        self._cycle_buttons[attr] = (btn, options)
-
-        def on_click(event, a=attr):
-            b, opts = self._cycle_buttons[a]
-            cur = getattr(self, a)
-            try:
-                idx = opts.index(cur)
-            except ValueError:
-                idx = 0
-            nxt = opts[(idx + 1) % len(opts)]
-            setattr(self, a, nxt)
-            b.text = self._format_value(a, nxt)
-
-        btn.on_click = on_click
-        row.add(lbl)
-        row.add(btn)
+        self._cycle_buttons[attr] = (val_btn, options)
         parent.add(row)
 
     def _format_value(self, attr, value):
