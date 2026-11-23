@@ -120,6 +120,15 @@ Project `github-games-e7c7d` is shared with Bridge Master, tractor, catan, socia
 - **smart:** bet's counters plus plays and playsOk.
 - **play:** hands, won, lost, pushed, blackjacks, net ($), plays, playsOk.
 
+## Performance (dealing must stay smooth)
+
+- **Cards at rest are flat.** A `TableCard` is one element with one image. Only while it turns over (flying in face up, or the hole card's reveal) does it get `.is-turning`: perspective, preserve-3d and both faces. Don't add `will-change`, permanent 3D or a second image to resting cards.
+- **Card rows glide; they never jump.** `Felt`'s `useRowGlide` runs a FLIP after every commit on each `[data-flip]` row (`CardRow`), so a hand re-centring as a card lands, or hands moving after a split, slides into place. A split card slides across from where it was (`departed` in `CardView.tsx`) instead of flying from the shoe.
+- **Animate only `transform` and `opacity`.** The shoe and tray fills use `scaleY`; the turn pulse is a scaling ring, not a `box-shadow` animation. No `mix-blend-mode` on the felt, because it re-composites under every flying card.
+- **Keep re-renders small.** `CardRow`, `HandView`, `SeatView`, `DealerArea` and `TableCard` are memoised (pass primitives or stable objects); the bankroll count-up is its own leaf (`Bankroll`), so the tween doesn't re-render the table.
+- **First-deal costs are moved to idle time.** The AudioContext is created while the page is idle (the first gesture only resumes it), noise buffers are cached, and `warmCards` decodes every card image a slice at a time after start-up.
+- **Measuring:** in headless Chrome, sample `requestAnimationFrame` deltas and the landed cards' positions during a deal. The first rAF after an idle page shows a ~450 ms gap in headless even with no input, which is an artifact. Use `--disable-gpu` for screenshots (GPU-mode captures sometimes come out blank).
+
 ## Conventions
 
 - State is plain JSON, and the engine is immutable (functions return new tables).

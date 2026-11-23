@@ -6,7 +6,7 @@
 // (♦ orange, ♣ green). Rank glyphs are stroked paths, so they look the same on
 // every system. The back is a gold "21" medallion on a crimson lattice.
 
-import { rankOf, suitOf, type Card, type Rank, type Suit } from '@/bj/cards';
+import { RANKS, SUITS, card as makeCard, rankOf, suitOf, type Card, type Rank, type Suit } from '@/bj/cards';
 
 export type CardLayout = 'full' | 'compact';
 export type SuitColors = 'four' | 'two';
@@ -326,4 +326,29 @@ export function digitsSvg(text: string, cx: number, cy: number, h: number, color
     x += adv(ch) * s;
   }
   return out;
+}
+
+const warm: HTMLImageElement[] = [];
+
+/**
+ * Decode every card image ahead of time, a few per idle slice, so a card's
+ * first deal doesn't wait on parsing its SVG mid-flight.
+ */
+export function warmCards(colors: SuitColors, idle: (cb: () => void) => void): void {
+  if (typeof Image === 'undefined') return;
+  const todo: [Card | null, CardLayout][] = [[null, 'full']];
+  for (const layout of ['full', 'compact'] as CardLayout[]) for (const s of SUITS) for (const r of RANKS) todo.push([makeCard(r, s), layout]);
+  const step = () => {
+    const end = performance.now() + 6;
+    while (todo.length && performance.now() < end) {
+      const [c, layout] = todo.shift()!;
+      const img = new Image();
+      img.decoding = 'async';
+      img.src = cardSrc(c, layout, colors);
+      img.decode().catch(() => {});
+      warm.push(img);
+    }
+    if (todo.length) idle(step);
+  };
+  idle(step);
 }

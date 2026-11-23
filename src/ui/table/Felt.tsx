@@ -1,15 +1,57 @@
 // The table: padded rail, felt with its printed arcs, the shoe (top right,
 // where the cards fly from) and the discard tray (top left, where they go).
 
-import type { CSSProperties, ReactNode } from 'react';
+import { memo, useLayoutEffect, useRef, type CSSProperties, type ReactNode, type RefObject } from 'react';
 import type { Rules } from '@/bj/rules';
 import { decksLeft } from '@/bj/shoe';
-import { setAnchor } from './anchors';
+import { prefersReducedMotion, setAnchor } from './anchors';
+
+/** Layout positions of the card rows (`[data-flip]`) and their running glides. */
+const lastPos = new WeakMap<Element, { x: number; y: number }>();
+const glides = new WeakMap<Element, Animation>();
+
+/**
+ * FLIP for the card rows: after each update, any row whose place changed (a
+ * hand re-centring as a card lands, hands moving over after a split) glides
+ * from where it was instead of jumping.
+ */
+function useRowGlide(ref: RefObject<HTMLElement | null>) {
+  useLayoutEffect(() => {
+    const root = ref.current;
+    if (!root) return;
+    const rows = [...root.querySelectorAll<HTMLElement>('[data-flip]')];
+    const residual = new Map<Element, { x: number; y: number }>();
+    for (const el of rows) {
+      const a = glides.get(el);
+      if (!a) continue;
+      const m = new DOMMatrixReadOnly(getComputedStyle(el).transform);
+      residual.set(el, { x: m.m41, y: m.m42 });
+      a.cancel();
+      glides.delete(el);
+    }
+    const reduce = prefersReducedMotion();
+    const now = rows.map((el) => [el, el.getBoundingClientRect()] as const);
+    for (const [el, r] of now) {
+      const prev = lastPos.get(el);
+      lastPos.set(el, { x: r.left, y: r.top });
+      if (!prev || reduce || !el.animate) continue;
+      const res = residual.get(el) ?? { x: 0, y: 0 };
+      const dx = prev.x + res.x - r.left;
+      const dy = prev.y + res.y - r.top;
+      if (Math.abs(dx) < 0.5 && Math.abs(dy) < 0.5) continue;
+      const a = el.animate([{ transform: `translate(${dx}px, ${dy}px)` }, { transform: 'none' }], { duration: 340, easing: 'cubic-bezier(.2,.8,.2,1)' });
+      glides.set(el, a);
+      a.onfinish = () => glides.delete(el);
+    }
+  });
+}
 
 export function Felt({ rules, children, className, print = true }: { rules: Rules | null; children: ReactNode; className?: string; print?: boolean }) {
+  const ref = useRef<HTMLDivElement | null>(null);
+  useRowGlide(ref);
   return (
     <div className="felt-wrap">
-      <div className={`felt${className ? ` ${className}` : ''}`}>
+      <div ref={ref} className={`felt${className ? ` ${className}` : ''}`}>
         <div className="felt-texture" aria-hidden />
         {print && rules && <FeltPrint rules={rules} />}
         {children}
@@ -19,7 +61,7 @@ export function Felt({ rules, children, className, print = true }: { rules: Rule
 }
 
 /** Gold printing on the felt: the payouts and the dealer's rule, on arcs. */
-function FeltPrint({ rules }: { rules: Rules }) {
+const FeltPrint = memo(function FeltPrint({ rules }: { rules: Rules }) {
   const bj = rules.bjPayout >= 1.5 ? 'BLACKJACK PAYS 3 TO 2' : 'BLACKJACK PAYS 6 TO 5';
   const dealer = rules.h17 ? 'Dealer must hit soft 17' : 'Dealer must stand on all 17s';
   return (
@@ -53,7 +95,7 @@ function FeltPrint({ rules }: { rules: Rules }) {
       )}
     </svg>
   );
-}
+});
 
 /** The shoe: a stack of backs whose height shows what's left, the cut card, and the numbers. */
 export function Shoe({ remaining, total, cut, showNumbers = true }: { remaining: number; total: number; cut: number; showNumbers?: boolean }) {

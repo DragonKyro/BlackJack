@@ -14,6 +14,17 @@ import type { Action } from '@/strategy/tables';
 import { formatMoney } from '../chips/chipArt';
 import { go, paths } from '../router';
 import { TopBar, useHotkeys, useTween } from '../shared/controls';
+
+/** The bankroll, counting up / down (a leaf, so the tween doesn't re-render the table). */
+function Bankroll({ value }: { value: number }) {
+  const shown = useTween(value);
+  return (
+    <span className="bankroll">
+      <span className="bankroll-label">Bankroll</span>
+      <span className="bankroll-value">{formatMoney(Math.round(shown * 100) / 100)}</span>
+    </span>
+  );
+}
 import { Icon } from '../shared/Icon';
 import { StrategyPeek } from '../shared/StrategyPeek';
 import { ActionBar, ruleActions } from '../table/ActionBar';
@@ -57,7 +68,6 @@ export function PlayPage() {
   const myTurn = p.stage === 'turn' && t?.turn?.seat === p.you;
   const legalNow: Action[] = t && myTurn ? legal(t, p.bankroll) : [];
   const broke = p.stage === 'betting' && p.bankroll < min;
-  const bankroll = useTween(p.bankroll);
 
   useHotkeys(
     {
@@ -128,10 +138,7 @@ export function PlayPage() {
         {p.stage === 'betting' ? (
           <>
             <div className="dock-row">
-              <span className="bankroll">
-                <span className="bankroll-label">Bankroll</span>
-                <span className="bankroll-value">{formatMoney(Math.round(bankroll * 100) / 100)}</span>
-              </span>
+              <Bankroll value={p.bankroll} />
               <ChipRack bankroll={p.bankroll - p.bet} onChip={(d) => p.addChip(d)} />
             </div>
             <div className="dock-row">
@@ -173,10 +180,7 @@ export function PlayPage() {
         ) : p.stage === 'result' || p.stage === 'sweeping' ? (
           <>
             <div className="dock-row">
-              <span className="bankroll">
-                <span className="bankroll-label">Bankroll</span>
-                <span className="bankroll-value">{formatMoney(Math.round(bankroll * 100) / 100)}</span>
-              </span>
+              <Bankroll value={p.bankroll} />
               <button type="button" className="btn btn-lg btn-shine" onClick={() => p.next()} disabled={p.stage === 'sweeping'}>
                 Next hand <Icon name="arrow" size="sm" />
               </button>

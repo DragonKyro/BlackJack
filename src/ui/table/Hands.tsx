@@ -1,7 +1,7 @@
 // Hands on the felt: the dealer's, and a seat's (one or more hands after a
 // split) with its betting circle, chips, total badges and result.
 
-import { useMemo, type CSSProperties } from 'react';
+import { memo, useMemo, type CSSProperties } from 'react';
 import type { Card } from '@/bj/cards';
 import { handTotal, isNatural } from '@/bj/hand';
 import { isBlackjackHand, type Hand, type Outcome, type Seat } from '@/bj/table';
@@ -29,18 +29,24 @@ export function TotalBadge({ cards, natural = true, hideSoft = false, className 
   );
 }
 
-/** Cards fanned left to right with a slight rise, each dealt in from the shoe. */
-export function CardRow({ cards, hideFrom, sweep, layout = 'full', flightMs }: { cards: readonly Card[]; hideFrom?: number; sweep?: boolean; layout?: 'full' | 'compact'; flightMs?: number }) {
+/** Cards fanned left to right with a slight rise, each dealt in from the shoe. (A row glides when it moves: see Felt.) */
+export const CardRow = memo(function CardRow({ cards, hideFrom, sweep, layout = 'full', flightMs }: { cards: readonly Card[]; hideFrom?: number; sweep?: boolean; layout?: 'full' | 'compact'; flightMs?: number }) {
   return (
-    <span className="cards" style={{ '--n': cards.length } as CSSProperties}>
+    <span className="cards" data-flip="" style={{ '--n': cards.length } as CSSProperties}>
       {cards.map((c, i) => (
-        <TableCard key={`${i}-${c}`} card={c} down={hideFrom !== undefined && i >= hideFrom} sweep={sweep} layout={layout} style={{ '--i': i } as CSSProperties} className="hand-card" flightMs={flightMs} />
+        <TableCard key={`${i}-${c}`} card={c} down={hideFrom !== undefined && i >= hideFrom} sweep={sweep} layout={layout} style={cardStyle(i)} className="hand-card" flightMs={flightMs} />
       ))}
     </span>
   );
+});
+
+const styles: CSSProperties[] = [];
+/** Stable style objects per position (so memoised cards don't re-render). */
+function cardStyle(i: number): CSSProperties {
+  return (styles[i] ??= { '--i': i } as CSSProperties);
 }
 
-export function DealerArea({ cards, holeUp, sweep, peeking, label = 'Dealer', flightMs, totals = true }: { cards: readonly Card[]; holeUp: boolean; sweep?: boolean; peeking?: boolean; label?: string; flightMs?: number; totals?: boolean }) {
+export const DealerArea = memo(function DealerArea({ cards, holeUp, sweep, peeking, label = 'Dealer', flightMs, totals = true }: { cards: readonly Card[]; holeUp: boolean; sweep?: boolean; peeking?: boolean; label?: string; flightMs?: number; totals?: boolean }) {
   const shown = holeUp ? cards : cards.slice(0, 1);
   return (
     <div className={`dealer-area${peeking ? ' is-peeking' : ''}`}>
@@ -51,7 +57,7 @@ export function DealerArea({ cards, holeUp, sweep, peeking, label = 'Dealer', fl
       <span className="total-slot">{totals && cards.length > 0 && !sweep && <TotalBadge cards={shown} natural={holeUp} />}</span>
     </div>
   );
-}
+});
 
 const OUTCOME_TEXT: Record<Outcome, string> = { blackjack: 'Blackjack!', win: 'Win', push: 'Push', lose: 'Lose', bust: 'Bust', surrender: 'Surrender' };
 
@@ -65,7 +71,7 @@ export function ResultBadge({ outcome, net, units }: { outcome: Outcome; net: nu
   );
 }
 
-export function HandView({ hand, active, sweep, showResult, units, flightMs, layout, totals = true }: { hand: Hand; active: boolean; sweep?: boolean; showResult: boolean; units?: boolean; flightMs?: number; layout?: 'full' | 'compact'; totals?: boolean }) {
+export const HandView = memo(function HandView({ hand, active, sweep, showResult, units, flightMs, layout, totals = true }: { hand: Hand; active: boolean; sweep?: boolean; showResult: boolean; units?: boolean; flightMs?: number; layout?: 'full' | 'compact'; totals?: boolean }) {
   const bj = isBlackjackHand(hand);
   return (
     <div className={`hand${active ? ' is-active' : ''}${hand.outcome ? ` out-${hand.outcome}` : ''}${hand.doubled ? ' is-doubled' : ''}`}>
@@ -74,9 +80,9 @@ export function HandView({ hand, active, sweep, showResult, units, flightMs, lay
       {totals && <span className="total-slot">{hand.cards.length > 0 && !sweep && <TotalBadge cards={hand.cards} natural={bj} />}</span>}
     </div>
   );
-}
+});
 
-export function SeatView({
+export const SeatView = memo(function SeatView({
   seat,
   name,
   you,
@@ -84,7 +90,8 @@ export function SeatView({
   sweep,
   showResults,
   units,
-  style,
+  x,
+  y,
   flightMs,
   pendingBet,
   layout,
@@ -98,7 +105,9 @@ export function SeatView({
   sweep?: boolean;
   showResults: boolean;
   units?: boolean;
-  style?: CSSProperties;
+  /** Position on the arc (% of the felt); none for a lone seat. */
+  x?: number;
+  y?: number;
   flightMs?: number;
   /** Chips shown in the circle before the deal (betting). */
   pendingBet?: number;
@@ -111,7 +120,7 @@ export function SeatView({
   const won = outcomes.some((o) => o === 'win' || o === 'blackjack');
   const lost = outcomes.length > 0 && outcomes.every((o) => o === 'lose' || o === 'bust' || o === 'surrender');
   return (
-    <div className={`seat${you ? ' is-you' : ''}${activeHand >= 0 ? ' is-turn' : ''}${seat.out && !pendingBet ? ' is-out' : ''}`} style={style}>
+    <div className={`seat${you ? ' is-you' : ''}${activeHand >= 0 ? ' is-turn' : ''}${seat.out && !pendingBet ? ' is-out' : ''}`} style={x === undefined ? undefined : ({ '--x': `${x}%`, '--y': `${y}%` } as CSSProperties)}>
       <div className="seat-hands">
         {seat.hands.map((h, i) => (
           <HandView key={i} hand={h} active={i === activeHand} sweep={sweep} showResult={showResults} units={units} flightMs={flightMs} layout={layout} totals={!bare} />
@@ -128,4 +137,4 @@ export function SeatView({
       {name && <span className="seat-name">{name}</span>}
     </div>
   );
-}
+});

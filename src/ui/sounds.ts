@@ -1,7 +1,8 @@
 // Small synthesized sounds (Web Audio, no files): a card snapping onto the
 // felt, the hole card turned, chips, a win, a blackjack, a loss, right and
-// wrong answers. Browsers only allow audio after a user gesture, so the
-// context is created on the first pointer press or key.
+// wrong answers. Creating an AudioContext can take 100 ms or more, so it's
+// made while the page is idle (suspended); browsers only let it run after a
+// user gesture, so the first tap or key just resumes it.
 
 import { usePrefs } from '@/store/prefsStore';
 
@@ -20,13 +21,22 @@ function audio(): AudioContext | null {
       return null;
     }
   }
-  if (ctx.state === 'suspended') void ctx.resume().catch(() => {});
   return ctx;
 }
 
+function unlock(): void {
+  const a = audio();
+  if (a && a.state === 'suspended') void a.resume().catch(() => {});
+}
+
+type Idle = (cb: () => void, opts?: { timeout: number }) => number;
+export const whenIdle: Idle = (cb, opts) =>
+  typeof window !== 'undefined' && 'requestIdleCallback' in window ? (window.requestIdleCallback as Idle)(cb, opts) : (setTimeout(cb, 600) as unknown as number);
+
 if (typeof window !== 'undefined') {
-  window.addEventListener('pointerdown', () => audio(), { once: true, capture: true });
-  window.addEventListener('keydown', () => audio(), { once: true, capture: true });
+  whenIdle(() => void audio(), { timeout: 4000 });
+  window.addEventListener('pointerdown', unlock, { capture: true, passive: true });
+  window.addEventListener('keydown', unlock, { capture: true, passive: true });
 }
 
 function tone(a: AudioContext, freq: number, start: number, dur: number, type: OscillatorType = 'sine', gain = 0.07): void {
@@ -42,14 +52,27 @@ function tone(a: AudioContext, freq: number, start: number, dur: number, type: O
   osc.stop(start + dur + 0.02);
 }
 
+/** Decaying noise bursts, made once per length (a few variants so repeats don't sound identical). */
+const bursts = new Map<number, AudioBuffer[]>();
+function burst(a: AudioContext, len: number): AudioBuffer {
+  const n = Math.floor(a.sampleRate * len);
+  let set = bursts.get(n);
+  if (!set) {
+    set = Array.from({ length: 4 }, () => {
+      const buf = a.createBuffer(1, n, a.sampleRate);
+      const data = buf.getChannelData(0);
+      for (let i = 0; i < n; i++) data[i] = (Math.random() * 2 - 1) * (1 - i / n) ** 3;
+      return buf;
+    });
+    bursts.set(n, set);
+  }
+  return set[Math.floor(Math.random() * set.length)]!;
+}
+
 /** A short filtered noise burst. */
 function noise(a: AudioContext, start: number, gain = 0.2, freq = 2200, len = 0.05, q = 0.8): void {
-  const n = Math.floor(a.sampleRate * len);
-  const buf = a.createBuffer(1, n, a.sampleRate);
-  const data = buf.getChannelData(0);
-  for (let i = 0; i < n; i++) data[i] = (Math.random() * 2 - 1) * (1 - i / n) ** 3;
   const src = a.createBufferSource();
-  src.buffer = buf;
+  src.buffer = burst(a, len);
   const filter = a.createBiquadFilter();
   filter.type = 'bandpass';
   filter.frequency.value = freq;

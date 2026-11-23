@@ -56,7 +56,8 @@ export function Seats({
           flightMs={flightMs}
           layout={n >= 5 ? 'compact' : 'full'}
           bare={bare}
-          style={arc ? ({ '--x': `${pos[i]!.x}%`, '--y': `${pos[i]!.y}%` } as CSSProperties) : undefined}
+          x={arc ? pos[i]!.x : undefined}
+          y={arc ? pos[i]!.y : undefined}
         />
       ))}
     </div>
