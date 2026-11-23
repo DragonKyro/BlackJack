@@ -1,0 +1,34 @@
+{
+  "name": "blackjack-trainer",
+  "private": true,
+  "version": "0.0.0",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc && vite build",
+    "preview": "vite preview",
+    "test": "vitest",
+    "test:run": "vitest run --passWithNoTests",
+    "typecheck": "tsc",
+    "deploy:rules": "npx -y firebase-tools@latest deploy --only firestore:rules --project github-games-e7c7d",
+    "fix-lock": "node scripts/fix-lockfile.mjs"
+  },
+  "dependencies": {
+    "@fontsource/inter": "^5.3.0",
+    "@fontsource/playfair-display": "^5.3.0",
+    "firebase": "^13.4.0",
+    "react": "^19.3.1",
+    "react-dom": "^19.3.1",
+    "zustand": "^5.1.0"
+  },
+  "devDependencies": {
+    "@types/node": "^22.20.5",
+    "@types/react": "^19.3.0",
+    "@types/react-dom": "^19.3.0",
+    "@vitejs/plugin-react": "^4.7.0",
+    "typescript": "^5.9.3",
+    "vite": "^6.4.6",
+    "vite-plugin-pwa": "^2.0.0",
+    "vitest": "^2.1.9"
+  }
+}

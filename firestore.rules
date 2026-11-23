@@ -1,0 +1,36 @@
+rules_version = '2';
+
+// Firestore in the shared project github-games-e7c7d. This file is the
+// project's WHOLE rule set: deploying it replaces every rule, so it must keep
+// every app's block. It is kept identical in Bridge-Master/firestore.rules and
+// BlackJack/firestore.rules — change both, then deploy from either.
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Bridge Master progress: one document per signed-in user, readable and
+    // writable only by that user. { deals: { "1A-7": { b, t, at } }, updated }
+    match /bridgeMaster/{uid} {
+      allow read: if request.auth != null && request.auth.uid == uid;
+      allow write: if request.auth != null && request.auth.uid == uid
+        && request.resource.data.keys().hasOnly(['deals', 'updated'])
+        && request.resource.data.deals is map;
+    }
+
+    // Blackjack Trainer: one document per signed-in user, readable, writable
+    // and deletable only by that user (see BlackJack/src/net/cloud.ts).
+    //   drills:   { id: "ts|mode|type|row|up|your|answer|tc" }  strategy decisions
+    //   sessions: { id: "<json>" }                             counting / bet / smart / play sessions
+    //   play:     { bankroll, at, ... }                         the Play table's bankroll
+    //   spread:   { units, at }                                 the saved bet spread
+    //   cleared:  ms                                            stats cleared before this time
+    match /blackjack/{uid} {
+      allow read, delete: if request.auth != null && request.auth.uid == uid;
+      allow write: if request.auth != null && request.auth.uid == uid
+        && request.resource.data.keys().hasOnly(['drills', 'sessions', 'play', 'spread', 'cleared', 'updated'])
+        && (!('drills' in request.resource.data) || request.resource.data.drills is map)
+        && (!('sessions' in request.resource.data) || request.resource.data.sessions is map)
+        && (!('play' in request.resource.data) || request.resource.data.play is map)
+        && (!('spread' in request.resource.data) || request.resource.data.spread is map)
+        && (!('cleared' in request.resource.data) || request.resource.data.cleared is number);
+    }
+  }
+}
