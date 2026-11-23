@@ -1,0 +1,133 @@
+/* Trainers: score chips, the verdict, number entry, feedback cards, the
+   counting quiz; plus setup-page bits (deal modes, spread preview) and the
+   strategy peek. */
+
+.score-chip { display: inline-flex; flex-direction: column; align-items: flex-end; line-height: 1.1; padding: 2px 4px; }
+.score-chip b { font-size: 15px; color: var(--gold-hi); }
+.score-chip span { font-size: 10px; text-transform: uppercase; letter-spacing: 0.6px; color: var(--fg-muted); font-weight: 700; }
+.scores { display: flex; gap: 10px; }
+.score { display: inline-flex; flex-direction: column; align-items: center; line-height: 1.05; min-width: 44px; }
+.score b { font-size: 15px; }
+.score span { font-size: 9.5px; text-transform: uppercase; letter-spacing: 0.6px; color: var(--fg-muted); font-weight: 700; }
+.score.is-good b { color: var(--ok); }
+.score.is-mid b { color: var(--warn); }
+.score.is-bad b { color: var(--danger); }
+@media (max-width: 420px) {
+  .scores { gap: 2px; }
+  .score { min-width: 34px; }
+  .score b { font-size: 13px; }
+  .score-net { display: none; }
+}
+
+/* The strategy trainer's invisible shoe and tray (cards still fly). */
+.trainer-shoe { position: absolute; top: 8px; right: 14px; width: calc(var(--cw) * 0.7); height: calc(var(--cw) * 0.5); }
+.trainer-discard { position: absolute; top: 8px; left: 14px; width: calc(var(--cw) * 0.6); height: calc(var(--cw) * 0.6); }
+
+/* ---------- the verdict ---------- */
+
+.verdict {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 18px 14px;
+  border-radius: 18px;
+  border: 1px solid transparent;
+  text-align: left;
+  color: var(--fg);
+  box-shadow: 0 16px 36px rgba(0, 0, 0, 0.5);
+  overflow: hidden;
+  animation: verdict-in 420ms var(--spring) both;
+  max-width: min(94%, 440px);
+}
+@keyframes verdict-in { from { opacity: 0; transform: translateY(20px) scale(0.85); } }
+.verdict.is-right { background: linear-gradient(180deg, rgba(23, 92, 55, 0.96), rgba(12, 56, 33, 0.96)); border-color: rgba(111, 220, 155, 0.5); }
+.verdict.is-wrong { background: linear-gradient(180deg, rgba(110, 22, 33, 0.96), rgba(70, 12, 20, 0.96)); border-color: rgba(255, 122, 107, 0.5); animation: verdict-in 420ms var(--spring) both, shake 400ms ease 300ms; }
+.verdict-icon { width: 44px; height: 44px; border-radius: 50%; display: grid; place-items: center; flex: none; animation: pop-in 500ms var(--spring) 120ms both; }
+.is-right .verdict-icon { background: var(--ok); color: #052914; box-shadow: 0 0 22px rgba(111, 220, 155, 0.6); }
+.is-wrong .verdict-icon { background: var(--danger); color: #fff; box-shadow: 0 0 22px rgba(255, 122, 107, 0.5); }
+.verdict-text { display: flex; flex-direction: column; }
+.verdict-text b { font-family: var(--display); font-size: 21px; }
+.verdict-text small { color: rgba(243, 239, 227, 0.75); font-size: 13px; }
+.verdict-timer { position: absolute; left: 0; bottom: 0; height: 3px; width: 100%; background: rgba(255, 255, 255, 0.5); transform-origin: left; animation: timer var(--ms) linear both; }
+@keyframes timer { from { transform: scaleX(1); } to { transform: scaleX(0); } }
+
+.streak { display: inline-flex; align-items: center; gap: 6px; padding: 5px 12px; border-radius: 999px; background: rgba(233, 196, 106, 0.16); border: 1px solid var(--line-strong); color: var(--gold-hi); font-weight: 750; font-size: 13px; animation: pop-in 380ms var(--spring) both; }
+
+.trainer-modes { gap: 10px 14px; }
+.trainer-modes .segmented button { padding: 5px 10px; font-size: 12px; }
+.lifetime { font-size: 12px; }
+
+/* ---------- number entry ---------- */
+
+.entry { width: min(100%, 360px); padding: 14px; animation: modal-in 380ms var(--spring) both; }
+.entry-title { font-weight: 750; text-align: center; margin-bottom: 10px; }
+.entry-title small { display: block; font-weight: 500; color: var(--fg-muted); font-size: 12px; }
+.entry-fields { display: flex; gap: 8px; margin-bottom: 10px; }
+.entry-field { flex: 1; display: flex; flex-direction: column; align-items: center; gap: 2px; padding: 8px 6px; border-radius: 14px; border: 1px solid var(--line); background: rgba(0, 0, 0, 0.25); color: var(--fg); transition: border-color 160ms, box-shadow 160ms, background 160ms; }
+.entry-field.is-active { border-color: var(--gold); box-shadow: 0 0 0 3px rgba(233, 196, 106, 0.18); background: rgba(233, 196, 106, 0.08); }
+.entry-label { font-size: 11px; text-transform: uppercase; letter-spacing: 0.7px; font-weight: 700; color: var(--fg-muted); }
+.entry-value { font-family: var(--display); font-size: 32px; font-weight: 800; line-height: 1.1; min-height: 36px; }
+.entry-value small { font-family: var(--font); font-size: 13px; font-weight: 700; color: var(--fg-muted); margin-left: 3px; }
+.entry-caret { color: var(--gold); animation: blink 1s steps(1) infinite; }
+@keyframes blink { 50% { opacity: 0; } }
+.keypad { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; }
+.key { height: 44px; border-radius: 12px; border: 1px solid var(--line); background: linear-gradient(180deg, rgba(48, 74, 64, 0.9), rgba(26, 46, 39, 0.95)); font-size: 19px; font-weight: 700; box-shadow: 0 2px 0 rgba(0, 0, 0, 0.45); transition: transform 90ms, background 120ms; }
+.key:active:not(:disabled) { transform: translateY(2px); box-shadow: none; }
+.key-alt { color: var(--gold); }
+.key:disabled { opacity: 0.3; }
+@media (hover: hover) and (min-height: 760px) { .keypad { display: grid; } }
+@media (hover: hover) and (max-height: 759px) { .keypad { display: none; } }
+.entry-actions { display: flex; gap: 8px; justify-content: flex-end; margin-top: 10px; flex-wrap: wrap; align-items: center; }
+
+/* ---------- feedback cards (count / bet / play) ---------- */
+
+.checks { display: flex; flex-direction: column; gap: 6px; width: min(100%, 400px); animation: modal-in 380ms var(--spring) both; }
+.check { display: flex; align-items: center; gap: 10px; padding: 9px 12px; border-radius: 14px; border: 1px solid var(--line); background: rgba(6, 20, 14, 0.88); box-shadow: 0 10px 24px rgba(0, 0, 0, 0.4); animation: rise-in 360ms var(--ease-out) both; }
+.check:nth-child(2) { animation-delay: 90ms; }
+.check:nth-child(3) { animation-delay: 180ms; }
+.check-mark { width: 28px; height: 28px; border-radius: 50%; display: grid; place-items: center; flex: none; }
+.check.ok .check-mark { background: var(--ok); color: #052914; }
+.check.close .check-mark { background: var(--warn); color: #2a1c00; }
+.check.bad .check-mark { background: var(--danger); color: #fff; }
+.check-body { display: flex; flex-direction: column; min-width: 0; line-height: 1.25; }
+.check-body b { font-size: 14px; }
+.check-body small { color: var(--fg-muted); font-size: 12px; }
+.checks .btn { align-self: center; margin-top: 4px; }
+
+.play-note { position: absolute; left: 50%; top: 4px; transform: translateX(-50%); z-index: 6; padding: 6px 14px; border-radius: 999px; font-weight: 750; font-size: 13px; white-space: nowrap; box-shadow: 0 8px 20px rgba(0, 0, 0, 0.45); animation: note-in 2.2s var(--ease-out) both; pointer-events: none; }
+.play-note.ok { background: var(--ok); color: #052914; }
+.play-note.bad { background: var(--danger); color: #fff; }
+@keyframes note-in { 0% { opacity: 0; transform: translate(-50%, 10px) scale(0.8); } 12% { opacity: 1; transform: translate(-50%, 0) scale(1); } 80% { opacity: 1; } 100% { opacity: 0; transform: translate(-50%, -6px); } }
+
+/* ---------- counting trainer ---------- */
+
+.quiz-backdrop { position: absolute; inset: 0; z-index: 8; display: grid; place-items: center; background: rgba(3, 10, 7, 0.45); backdrop-filter: blur(2px); -webkit-backdrop-filter: blur(2px); animation: fade-in 200ms ease both; padding: 10px; }
+.quiz-result { text-align: center; }
+.quiz-result .big { font-family: var(--display); font-size: 44px; font-weight: 800; line-height: 1; }
+.quiz-result.ok .big { color: var(--ok); }
+.quiz-result.close .big { color: var(--warn); }
+.quiz-result.bad .big { color: var(--danger); }
+.paused { position: absolute; inset: 0; z-index: 7; display: grid; place-items: center; background: rgba(3, 10, 7, 0.55); font-family: var(--display); font-size: 34px; font-weight: 800; letter-spacing: 4px; color: var(--gold-hi); animation: fade-in 200ms ease both; }
+.counting-foot { display: flex; gap: 10px; align-items: center; justify-content: center; flex-wrap: wrap; }
+
+/* ---------- setup bits ---------- */
+
+.deal-modes { display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 8px; padding: 8px 0 6px; }
+.deal-mode { display: flex; flex-direction: column; gap: 2px; padding: 10px 12px; border-radius: 14px; border: 1px solid var(--line); background: rgba(0, 0, 0, 0.2); text-align: left; transition: border-color 160ms, background 160ms, transform 160ms var(--spring); animation: rise-in 360ms var(--ease-out) both; animation-delay: calc(var(--k) * 40ms); }
+.deal-mode b { font-size: 15px; }
+.deal-mode span { font-size: 12px; color: var(--fg-muted); }
+.deal-mode.is-on { border-color: var(--gold); background: rgba(233, 196, 106, 0.12); box-shadow: 0 0 0 3px rgba(233, 196, 106, 0.12); }
+.deal-mode:active { transform: scale(0.97); }
+.deal-mode:disabled { opacity: 0.4; }
+.setup-note { margin: 6px 0 4px; font-size: 13px; }
+.setup-bankroll { display: inline-flex; align-items: center; gap: 10px; }
+.setup-bankroll b { font-family: var(--display); font-size: 19px; color: var(--gold-hi); }
+.spread-preview { display: flex; align-items: flex-end; gap: 10px; justify-content: flex-end; padding: 0 0 10px; font-size: 11px; }
+
+.peek-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-bottom: 10px; flex-wrap: wrap; }
+.peek-rules { font-size: 12px; }
+
+/* Overlays on the Bet / Smart felt: entry, checks, messages (centred). */
+.quiz-layer { position: absolute; inset: 0; z-index: 8; display: grid; place-items: center; padding: 10px; pointer-events: none; }
+.quiz-layer > * { pointer-events: auto; }

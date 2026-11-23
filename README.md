@@ -1,120 +1,81 @@
-# Blackjack Training Software
+# Blackjack Trainer
 
-A comprehensive blackjack training application built with Python and the Arcade library. Designed to help players master basic strategy, Hi-Lo card counting, and bet spreading through focused practice modes and detailed performance analytics.
+A blackjack training web app: basic strategy, Hi-Lo card counting and bet sizing, drilled one at a time and then put together at a full table. It runs in the browser on a phone or a computer, works offline once loaded, and can sync your training record between devices when you sign in with Google.
 
-## Game Modes
+**Play it:** https://dragonkyro.github.io/BlackJack/
+
+## Modes
 
 ### Play Blackjack
-Full blackjack game with configurable table rules:
-- Configurable rules: number of decks, H17/S17, 3:2 or 6:5 blackjack, double, split, DAS, surrender, insurance, penetration
-- Hit, Stand, Double Down, and Surrender actions
-- Keyboard shortcuts for fast play (H/S/D/R, arrow keys for betting)
-- Smooth card deal animations from shoe
-- Shoe indicator showing cards remaining and approximate decks left
-- Chip management, bet sizing, and hand statistics
+A full table with a bankroll that persists between visits.
+- Configurable rules: decks, penetration, H17/S17, 3:2 or 6:5, double, split (to four hands; split aces get one card), double after split, late surrender, insurance, table minimum.
+- Hit, stand, double, split, surrender, insurance and even money. The dealer peeks for blackjack.
+- Up to four other players, who play basic strategy, so there are more cards to count.
+- A coach that flags any play that isn't basic strategy, plus an optional running/true count readout.
+- Cards are dealt from the shoe with flips, the hole card is turned over, cards sweep to the discard tray, and chips pay out.
+- Press **T** at any table to see the strategy chart with your hand's cell highlighted.
 
 ### Strategy Trainer
-Rapid-fire basic strategy practice — no betting, just decisions:
-- Deal modes: Random, Hard only, Soft only, Pairs only, Smart (weighted toward weak spots)
-- Choose the correct basic strategy play (Hit/Stand/Double/Split/Surrender)
-- Instant feedback: green for correct, red with the right answer for incorrect
-- Auto-advances after 1.5 seconds (or press any key to skip)
-- Session and lifetime accuracy tracking persisted to disk
-- Stats broken down by hand type: hard, soft, pair
+Rapid-fire basic strategy with no betting.
+- Deal modes: Random, Hard, Soft, Pairs, and Smart, which weights every chart cell toward the ones you miss or haven't seen.
+- Instant feedback, auto-deal after 1.5 s (any key skips ahead), streaks, and session and lifetime accuracy.
 
 ### Counting Trainer
-Practice Hi-Lo card counting on a simulated multi-seat casino table:
-- Configurable: number of decks, player seats (1-7), deal speed, poll frequency
-- Cards dealt to multiple seats in a semi-circular casino table layout
-- Periodically pauses to ask for the running count
-- Scores exact matches and close answers (within +/-1)
-- Pause/resume with Space bar
-
-### Smart Trainer
-The full combined training experience — count, bet, and play all validated:
-- Between rounds: input your running count and bet in units
-- TC validated against actual count, bet validated against configured spread
-- Play your hand with H/S/D/R — every action checked against basic strategy
-- Three independent accuracy scores tracked: TC, Bets, Play
-- Configurable rules and bet spread
+A table of 1–7 seats plays itself at your chosen speed (0.3–3 s per card).
+- Every N cards it stops and asks for the running count.
+- Answers are scored as exact or within ±1. Pause and resume with Space.
+- The count resets on a new shoe.
 
 ### Bet Trainer
-Practice counting and bet sizing — hands play themselves via basic strategy:
-- Multi-seat casino table with animated card dealing
-- Between rounds: input running count and bet (validated against spread)
-- All seats auto-play according to basic strategy
-- Tracks bet accuracy and TC accuracy separately
+Before each round you give the count and your bet in units, then the hands play themselves by basic strategy.
+- You can give the true count, or the running count for an easier drill.
+- Both the count and the bet are graded against the cards seen and your bet spread. The feedback shows the arithmetic, e.g. RC +7 ÷ 3.5 decks = TC +2.
 
-### Strategy Tables
-View color-coded basic strategy charts that adjust to any ruleset:
-- Hard totals, soft totals, pairs, and deviation tables (Illustrious 18 + Fab 4)
-- Actions: Hit (red), Stand (green), Double (blue), Split (yellow), Surrender (purple)
-- Change rules on the fly to see how strategy adjusts
-- Accessible from home screen or during gameplay (press T)
+### Smart Trainer
+Everything at once: count, bet, then play your own hand. All three are graded.
+- Plays can be graded against basic strategy, or against the Illustrious 18 + Fab 4 index plays at the current true count.
+- Insurance is graded too.
+
+### Strategy Charts
+Colour-coded hard, soft and pair charts that adjust to the rules, plus the Illustrious 18 and Fab 4 index plays.
 
 ### Bet Spread Analyzer
-Model different bet spreads and calculate expected value:
-- Interactive spread editor: set bet units per true count (-5 to +10)
-- Live-updating results: EV/hour, SD/hour, risk of ruin, N0 break-even point
-- Configurable: decks, penetration, unit size, bankroll, hands/hour
-- Preset spreads: 1-12 (aggressive), 1-8 (conservative), Flat
+Edit a spread unit by unit, from TC −7 to +10, and see live results:
+- EV and SD per hour, risk of ruin, N0, average bet, and the bankroll needed for 5% or 1% risk of ruin.
+- The true-count distribution is computed from the deck count, penetration and your TC rounding.
+- Save the spread and the trainers can use it.
 
 ### Stats & Analytics
-Track training performance with rich visualizations:
-- **Summary**: overall accuracy, per-type breakdown, recent trends
-- **Heatmap**: error-rate overlay on the basic strategy grid (matplotlib) — instantly see weak spots
-- **Trend graph**: rolling 20-hand accuracy line chart (matplotlib)
-- **Interactive report**: press B to open a full Plotly dashboard in the browser with heatmaps, bar charts, and rolling accuracy — fully interactive with hover/zoom
+- Accuracy overall, by hand type, and by dealer up card.
+- An error-rate heatmap over the strategy grid, plus your biggest leaks with a one-tap "drill these".
+- A rolling 20-decision accuracy trend, and a list of every trainer and table session.
 
-## Project Structure
+## Keyboard
 
-```
-blackjack.py             — Entry point
-models.py                — Game logic: Rules, Card, Deck, Hand, Player, Round, Game
-utils/                   — Math and analytics modules
-  bet_spread.py          — Bet spread analysis: EV, SD, risk of ruin, TC frequency
-  stats_analytics.py     — Pandas calculations, matplotlib charts, Plotly HTML reports
-basic_strategy/          — Strategy table data and lookup
-  tables.py              — H17/S17 tables, composite action resolution, deviations
-views/                   — Arcade views package (one file per view)
-  common.py              — Shared constants, styles, helpers (make_button, make_cycle_row)
-  home.py                — Main menu
-  rules.py               — Pre-game rules configuration (reusable with callbacks)
-  game.py                — Blackjack game table with animations
-  strategy.py            — Strategy chart viewer (4 tabs incl. deviations)
-  strategy_trainer_config.py — Config for strategy trainer
-  strategy_trainer.py    — Rapid-fire strategy practice
-  smart_trainer_config.py — Config for smart trainer
-  smart_trainer.py       — Combined count + bet + play trainer
-  bet_trainer_config.py  — Config for bet trainer
-  bet_trainer.py         — Count + bet trainer with auto-play
-  counting_trainer_config.py — Config for counting trainer
-  counting_trainer.py    — Hi-Lo counting practice on simulated table
-  bet_spread.py          — Bet spread analyzer with live EV calculations
-  stats.py               — Stats viewer with matplotlib charts + Plotly report
-  options.py             — Options (placeholder)
-  credits.py             — Credits
-cards/                   — PNG card assets (100x140)
-tests/                   — pytest test suite
-```
+| Where | Keys |
+| --- | --- |
+| Any table | **H** hit · **S** stand · **D** double · **P** split · **R** surrender · **T** strategy chart · **Esc** back |
+| Play | **Enter** deal / next hand · **←/→** bet ± a minimum · **C** clear the bet · **Y/N** insurance |
+| Strategy trainer | any key: next hand |
+| Counting trainer | digits, **−**, **Enter** to answer · **Space** pause / continue |
+| Bet / Smart trainers | digits, **−**, **Tab** between count and bet, **Enter** submit / deal |
+| Charts, Stats | **←/→** (or **Q/W**) switch tabs |
 
-## Requirements
+## Tech
 
-- Python 3.10+
-- arcade >= 3.3
-- numpy, pandas, matplotlib, plotly, kaleido
+TypeScript, React 19, Vite 6, Zustand, and Vitest. Cards and chips are drawn in code as SVG, and the sounds are synthesized with Web Audio. It's an offline-capable PWA (vite-plugin-pwa). Firebase Auth and Firestore load lazily, only when you sign in. The project is laid out like [Bridge Master](https://github.com/DragonKyro/Bridge-Master) and shares its card art and Firebase project.
 
-## Setup
+## Develop
 
 ```bash
-conda activate arcade
-pip install -r requirements.txt
-python blackjack.py
+npm install        # then: npm run fix-lock (see CLAUDE.md)
+npm run dev        # http://localhost:5173/BlackJack/
+npm run test:run   # unit tests
+npm run build      # typecheck + production build + service worker
 ```
 
-## Testing
+Pushing to `main` deploys to GitHub Pages through `.github/workflows/deploy.yml`, which runs the tests and builds first.
 
-```bash
-conda activate arcade
-python -m pytest tests/ -v
-```
+## Firebase
+
+Stats sync uses the shared Firebase project `github-games-e7c7d`. Each user gets one Firestore document, `blackjack/{uid}`, and only that user can read or write it. The rules are in `firestore.rules`. They are the whole project's rule set, so they also carry Bridge Master's block. Deploy them with `npm run deploy:rules`.

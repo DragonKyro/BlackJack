@@ -1,4 +1,9 @@
-.*/
-__pycache__/
-*.pyc
-strategy_stats.json
+node_modules
+dist
+.vite
+.firebase
+coverage
+*.log
+.DS_Store
+.env
+.claude/settings.local.json
